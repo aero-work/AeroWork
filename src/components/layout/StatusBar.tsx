@@ -24,7 +24,7 @@ export function StatusBar() {
   const handleTerminalClick = async () => {
     if (terminals.length === 0) {
       // Create a new terminal if none exist
-      const workingDir = currentWorkingDir || process.env.HOME || "/";
+      const workingDir = currentWorkingDir || "/";
       await createTerminal(workingDir, 80, 24);
     } else {
       toggleTerminalPanel();
