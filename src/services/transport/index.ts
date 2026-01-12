@@ -10,9 +10,12 @@ let transportInstance: Transport | null = null;
 
 // Detect if running in Tauri or browser
 function detectTransportType(): "tauri" | "websocket" {
-  // Check if Tauri API is available
-  if (typeof window !== "undefined" && (window as { __TAURI__?: unknown }).__TAURI__) {
-    return "tauri";
+  // Check if Tauri API is available (Tauri 2.0 uses __TAURI_INTERNALS__)
+  if (typeof window !== "undefined") {
+    const win = window as { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown };
+    if (win.__TAURI__ || win.__TAURI_INTERNALS__) {
+      return "tauri";
+    }
   }
   return "websocket";
 }
