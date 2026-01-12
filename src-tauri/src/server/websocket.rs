@@ -379,7 +379,9 @@ async fn dispatch_method(
         // Terminal commands
         "create_terminal" => {
             let cwd = params.get("cwd").and_then(|v| v.as_str());
-            let terminal_id = create_terminal_handler(state, cwd).await?;
+            let cols = params.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+            let rows = params.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
+            let terminal_id = create_terminal_handler(state, cwd, cols, rows).await?;
             Ok(serde_json::Value::String(terminal_id))
         }
         "write_terminal" => {
@@ -526,9 +528,9 @@ async fn rename_path_handler(from: &str, to: &str) -> Result<(), String> {
 // Terminal handlers
 use crate::core::terminal::TerminalInfo;
 
-async fn create_terminal_handler(state: &Arc<AppState>, cwd: Option<&str>) -> Result<String, String> {
+async fn create_terminal_handler(state: &Arc<AppState>, cwd: Option<&str>, cols: u16, rows: u16) -> Result<String, String> {
     let cwd = cwd.map(|s| s.to_string()).unwrap_or_else(|| std::env::var("HOME").unwrap_or_else(|_| "/".to_string()));
-    state.terminal_manager.create_terminal(cwd, 80, 24)
+    state.terminal_manager.create_terminal(cwd, cols, rows)
 }
 
 async fn write_terminal_handler(state: &Arc<AppState>, terminal_id: &str, data: &str) -> Result<(), String> {

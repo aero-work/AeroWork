@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { invoke } from "@tauri-apps/api/core";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import * as terminalService from "@/services/terminalService";
 
 export interface TerminalInfo {
   id: string;
@@ -41,11 +40,7 @@ export const useTerminalStore = create<TerminalStore>()(
     isTerminalPanelOpen: false,
 
     createTerminal: async (workingDir: string, cols: number, rows: number) => {
-      const terminalId = await invoke<string>("create_terminal", {
-        workingDir,
-        cols,
-        rows,
-      });
+      const terminalId = await terminalService.createTerminal(workingDir, cols, rows);
 
       const terminal: TerminalInfo = {
         id: terminalId,
@@ -62,15 +57,15 @@ export const useTerminalStore = create<TerminalStore>()(
     },
 
     writeTerminal: async (terminalId: string, data: string) => {
-      await invoke("write_terminal", { terminalId, data });
+      await terminalService.writeTerminal(terminalId, data);
     },
 
     resizeTerminal: async (terminalId: string, cols: number, rows: number) => {
-      await invoke("resize_terminal", { terminalId, cols, rows });
+      await terminalService.resizeTerminal(terminalId, cols, rows);
     },
 
     killTerminal: async (terminalId: string) => {
-      await invoke("kill_terminal", { terminalId });
+      await terminalService.killTerminal(terminalId);
       set((state) => {
         state.terminals = state.terminals.filter((t) => t.id !== terminalId);
         if (state.activeTerminalId === terminalId) {
@@ -83,7 +78,7 @@ export const useTerminalStore = create<TerminalStore>()(
     },
 
     listTerminals: async () => {
-      const terminals = await invoke<TerminalInfo[]>("list_terminals");
+      const terminals = await terminalService.listTerminals();
       set((state) => {
         state.terminals = terminals;
       });
@@ -127,35 +122,7 @@ export const useTerminalStore = create<TerminalStore>()(
   }))
 );
 
-// Terminal output event listener setup
-let unlistenFn: UnlistenFn | null = null;
-const outputCallbacks = new Map<string, (data: string) => void>();
-
-export async function setupTerminalOutputListener() {
-  if (unlistenFn) return;
-
-  unlistenFn = await listen<TerminalOutput>("terminal:output", (event) => {
-    const callback = outputCallbacks.get(event.payload.terminal_id);
-    if (callback) {
-      callback(event.payload.data);
-    }
-  });
-}
-
-export function registerTerminalOutputCallback(
-  terminalId: string,
-  callback: (data: string) => void
-) {
-  outputCallbacks.set(terminalId, callback);
-  return () => {
-    outputCallbacks.delete(terminalId);
-  };
-}
-
-export function cleanupTerminalOutputListener() {
-  if (unlistenFn) {
-    unlistenFn();
-    unlistenFn = null;
-  }
-  outputCallbacks.clear();
-}
+// Re-export terminal service functions
+export const setupTerminalOutputListener = terminalService.setupTerminalOutputListener;
+export const registerTerminalOutputCallback = terminalService.registerTerminalOutputCallback;
+export const cleanupTerminalOutputListener = terminalService.cleanupTerminalOutputListener;

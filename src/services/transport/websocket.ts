@@ -177,7 +177,8 @@ export class WebSocketTransport implements Transport {
     }
   }
 
-  private async send<T>(method: string, params?: unknown): Promise<T> {
+  // Made public for use by service layer
+  async send<T>(method: string, params?: unknown): Promise<T> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("WebSocket is not connected");
     }

@@ -17,7 +17,7 @@ export function TerminalPanel() {
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
 
   const handleCreateTerminal = useCallback(async () => {
-    const workingDir = currentWorkingDir || process.env.HOME || "/";
+    const workingDir = currentWorkingDir || "/";
     // Default terminal size - will be resized by fit addon
     await createTerminal(workingDir, 80, 24);
   }, [createTerminal, currentWorkingDir]);
@@ -40,11 +40,14 @@ export function TerminalPanel() {
       <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/50">
         <div className="flex items-center gap-1 flex-1 overflow-x-auto">
           {terminals.map((terminal) => (
-            <button
+            <div
               key={terminal.id}
+              role="tab"
+              tabIndex={0}
               onClick={() => setActiveTerminal(terminal.id)}
+              onKeyDown={(e) => e.key === "Enter" && setActiveTerminal(terminal.id)}
               className={cn(
-                "flex items-center gap-1 px-2 py-1 text-xs rounded-sm hover:bg-accent",
+                "flex items-center gap-1 px-2 py-1 text-xs rounded-sm hover:bg-accent cursor-pointer",
                 activeTerminalId === terminal.id && "bg-accent"
               )}
             >
@@ -58,7 +61,7 @@ export function TerminalPanel() {
               >
                 <X className="w-3 h-3" />
               </button>
-            </button>
+            </div>
           ))}
         </div>
 

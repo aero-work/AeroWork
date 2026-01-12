@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
@@ -41,9 +40,12 @@ function CollapsibleSection({
   action,
 }: CollapsibleSectionProps) {
   return (
-    <div className="border-b border-border">
+    <div className={cn(
+      "border-b border-border flex flex-col",
+      isOpen && "flex-1 min-h-0"
+    )}>
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent/50"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent/50 flex-shrink-0"
         onClick={onToggle}
       >
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -57,7 +59,11 @@ function CollapsibleSection({
         </div>
         {action && <div onClick={(e) => e.stopPropagation()}>{action}</div>}
       </div>
-      {isOpen && <div className="pb-2">{children}</div>}
+      {isOpen && (
+        <div className="flex-1 min-h-0 overflow-y-auto pb-2">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -114,8 +120,7 @@ export function Sidebar() {
   const sessionList = Object.values(sessions);
 
   return (
-    <div className="h-full flex flex-col bg-muted/30">
-      <ScrollArea className="flex-1">
+    <div className="h-full flex flex-col bg-muted/30 overflow-hidden">
         {/* Sessions Section */}
         <CollapsibleSection
           title="Sessions"
@@ -272,7 +277,6 @@ export function Sidebar() {
             Coming soon...
           </div>
         </CollapsibleSection>
-      </ScrollArea>
     </div>
   );
 }

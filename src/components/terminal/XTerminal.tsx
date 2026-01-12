@@ -90,8 +90,14 @@ export function XTerminal({ terminalId, onReady }: XTerminalProps) {
       // WebGL not supported, fall back to canvas renderer
     }
 
-    // Fit terminal to container
-    fitAddon.fit();
+    // Fit terminal to container after a short delay to ensure DOM is ready
+    requestAnimationFrame(() => {
+      try {
+        fitAddon.fit();
+      } catch {
+        // Ignore fit errors during initial render
+      }
+    });
 
     // Handle user input
     terminal.onData((data) => {
@@ -103,9 +109,13 @@ export function XTerminal({ terminalId, onReady }: XTerminalProps) {
       terminal.write(data);
     });
 
-    // Setup resize observer
+    // Setup resize observer with debounce
+    let resizeTimeout: number | undefined;
     const resizeObserver = new ResizeObserver(() => {
-      handleResize();
+      clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
+        handleResize();
+      }, 50);
     });
     resizeObserver.observe(containerRef.current);
 
@@ -117,6 +127,7 @@ export function XTerminal({ terminalId, onReady }: XTerminalProps) {
     }
 
     return () => {
+      clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
       unregister();
       terminal.dispose();

@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import Editor, { type OnMount, type OnChange } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { useFileStore, useActiveFile } from "@/stores/fileStore";
-import { invoke } from "@tauri-apps/api/core";
+import * as fileService from "@/services/fileService";
 import { Loader2 } from "lucide-react";
 
 export function CodeEditor() {
@@ -33,10 +33,7 @@ export function CodeEditor() {
     if (!activeFile || !activeFile.isDirty) return;
 
     try {
-      await invoke("write_file", {
-        path: activeFile.path,
-        content: activeFile.content,
-      });
+      await fileService.writeFile(activeFile.path, activeFile.content);
       markFileSaved(activeFile.path);
     } catch (error) {
       console.error("Failed to save file:", error);

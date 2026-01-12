@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
-import { invoke } from "@tauri-apps/api/core";
+import * as fileService from "@/services/fileService";
 import { useFileStore, type FileEntry, type FileTreeNode } from "@/stores/fileStore";
 import {
   ContextMenu,
@@ -336,11 +336,17 @@ export function FileTree() {
     async (path: string) => {
       try {
         setDirectoryLoading(path, true);
-        const entries = await invoke<FileEntry[]>("list_directory", {
-          path,
-          showHidden: showHiddenFiles,
-        });
-        updateDirectoryChildren(path, entries);
+        const entries = await fileService.listDirectory(path, showHiddenFiles);
+        // Convert to FileEntry format expected by store
+        const convertedEntries: FileEntry[] = entries.map((e) => ({
+          name: e.name,
+          path: e.path,
+          isDir: e.isDir,
+          isHidden: e.isHidden,
+          size: e.size,
+          modified: e.modified,
+        }));
+        updateDirectoryChildren(path, convertedEntries);
       } catch (error) {
         console.error("Failed to load directory:", error);
         setDirectoryLoading(path, false);
@@ -396,10 +402,7 @@ export function FileTree() {
       if (node.isDir) return;
 
       try {
-        const result = await invoke<{ path: string; content: string; language?: string }>(
-          "read_file",
-          { path: node.path }
-        );
+        const result = await fileService.readFile(node.path);
         openFile({
           path: result.path,
           name: node.name,
@@ -422,7 +425,7 @@ export function FileTree() {
       const newPath = `${parentPath}/${newName}`;
 
       try {
-        await invoke("rename_path", { oldPath, newPath });
+        await fileService.renamePath(oldPath, newPath);
         // Reload parent directory
         await loadDirectory(parentPath);
         setRenamingPath(null);
@@ -440,7 +443,7 @@ export function FileTree() {
       if (!confirm(`Delete "${node.name}"?`)) return;
 
       try {
-        await invoke("delete_path", { path: node.path });
+        await fileService.deletePath(node.path);
         // Close file if it was open
         if (!node.isDir) {
           closeFile(node.path);
@@ -509,9 +512,9 @@ export function FileTree() {
 
       try {
         if (newItem.type === "folder") {
-          await invoke("create_directory", { path });
+          await fileService.createDirectory(path);
         } else {
-          await invoke("create_file", { path });
+          await fileService.createFile(path);
         }
         // Reload parent directory
         await loadDirectory(newItem.parentPath);
