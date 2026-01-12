@@ -6,8 +6,9 @@ use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::{
-    cancel_session, connect_agent, create_session, disconnect_agent, initialize_agent,
-    respond_permission, send_prompt, set_session_mode,
+    cancel_session, connect_agent, create_directory, create_file, create_session, delete_path,
+    disconnect_agent, initialize_agent, list_directory, read_file, rename_path, respond_permission,
+    send_prompt, set_session_mode, write_file,
 };
 use crate::core::AppState;
 
@@ -36,6 +37,14 @@ pub fn run() {
             cancel_session,
             set_session_mode,
             respond_permission,
+            // File operations
+            list_directory,
+            read_file,
+            write_file,
+            create_file,
+            create_directory,
+            delete_path,
+            rename_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

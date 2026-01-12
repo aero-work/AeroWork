@@ -97,3 +97,56 @@ export function ResizableLayout({
     </div>
   );
 }
+
+// Three-panel layout: sidebar | center | right panel
+interface ThreePanelLayoutProps {
+  sidebar: React.ReactNode;
+  center: React.ReactNode;
+  right: React.ReactNode;
+  sidebarDefaultSize?: number;
+  sidebarMinSize?: number;
+  sidebarMaxSize?: number;
+  rightDefaultSize?: number;
+  rightMinSize?: number;
+  rightMaxSize?: number;
+}
+
+export function ThreePanelLayout({
+  sidebar,
+  center,
+  right,
+  sidebarDefaultSize = 240,
+  sidebarMinSize = 180,
+  sidebarMaxSize = 400,
+  rightDefaultSize = 500,
+  rightMinSize = 300,
+  rightMaxSize = 800,
+}: ThreePanelLayoutProps) {
+  return (
+    <div className="flex h-full">
+      {/* Sidebar (left) */}
+      <ResizablePanel
+        side="left"
+        defaultSize={sidebarDefaultSize}
+        minSize={sidebarMinSize}
+        maxSize={sidebarMaxSize}
+        className="border-r"
+      >
+        {sidebar}
+      </ResizablePanel>
+
+      {/* Center (chat) - flexible */}
+      <div className="flex-1 min-w-[300px] border-r">{center}</div>
+
+      {/* Right panel (editor) */}
+      <ResizablePanel
+        side="right"
+        defaultSize={rightDefaultSize}
+        minSize={rightMinSize}
+        maxSize={rightMaxSize}
+      >
+        {right}
+      </ResizablePanel>
+    </div>
+  );
+}

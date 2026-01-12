@@ -24,7 +24,8 @@ aero-code/
 │   │   └── commands/             # Tauri IPC commands
 │   │       ├── mod.rs
 │   │       ├── agent.rs          # connect, disconnect, initialize, respond_permission
-│   │       └── session.rs        # create_session, send_prompt, cancel, set_mode
+│   │       ├── session.rs        # create_session, send_prompt, cancel, set_mode
+│   │       └── file.rs           # list_directory, read_file, write_file, create, delete, rename
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 ├── src/                          # Frontend (React/TypeScript)

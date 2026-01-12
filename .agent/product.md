@@ -181,9 +181,10 @@ Build a unified interface for AI-powered code development that works seamlessly 
 - [x] Project/directory management with persistence
 - [x] Tool Call Cards with expand/collapse
 
-### Phase 2: File & Terminal
-- [ ] File browser component (FileTree)
-- [ ] Code viewer with syntax highlighting (Monaco/CodeMirror)
+### Phase 2: File & Terminal (In Progress)
+- [x] File browser component (FileTree)
+- [x] Code viewer with syntax highlighting (Monaco Editor)
+- [x] File operations (create, delete, rename via context menu)
 - [ ] Terminal integration (xterm.js + PTY)
 - [ ] Diff viewer for file changes
 

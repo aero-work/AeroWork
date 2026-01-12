@@ -6,6 +6,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
 import { ProjectSelector } from "@/components/common/ProjectSelector";
+import { FileTree } from "@/components/editor/FileTree";
 import {
   MessageSquare,
   FolderTree,
@@ -15,6 +16,8 @@ import {
   ChevronRight,
   Plus,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { agentAPI } from "@/services/api";
 
@@ -74,6 +77,8 @@ export function Sidebar() {
 
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const addRecentProject = useFileStore((state) => state.addRecentProject);
+  const showHiddenFiles = useFileStore((state) => state.showHiddenFiles);
+  const toggleHiddenFiles = useFileStore((state) => state.toggleHiddenFiles);
 
   const isConnected = connectionStatus === "connected";
 
@@ -175,36 +180,51 @@ export function Sidebar() {
           icon={<FolderTree className="w-4 h-4" />}
           isOpen={openSections.has("files")}
           onToggle={() => toggleSection("files")}
+          action={
+            currentWorkingDir ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={toggleHiddenFiles}
+                title={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
+              >
+                {showHiddenFiles ? (
+                  <EyeOff className="w-3 h-3" />
+                ) : (
+                  <Eye className="w-3 h-3" />
+                )}
+              </Button>
+            ) : null
+          }
         >
-          <div className="px-2">
-            <ProjectSelector
-              onSelect={addRecentProject}
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start gap-2 h-8"
-                >
-                  <FolderTree className="w-3 h-3" />
-                  {currentWorkingDir ? (
-                    <span className="truncate text-xs">
-                      {currentWorkingDir.split("/").pop()}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Open Project...
-                    </span>
-                  )}
-                </Button>
-              }
-            />
-            {currentWorkingDir && (
-              <div className="mt-2 px-2 py-2 bg-muted/50 rounded text-xs text-muted-foreground">
-                <div className="truncate" title={currentWorkingDir}>
-                  {currentWorkingDir}
-                </div>
-              </div>
-            )}
+          <div>
+            {/* Project selector */}
+            <div className="px-2 mb-2">
+              <ProjectSelector
+                onSelect={addRecentProject}
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 h-8"
+                  >
+                    <FolderTree className="w-3 h-3" />
+                    {currentWorkingDir ? (
+                      <span className="truncate text-xs">
+                        {currentWorkingDir.split("/").pop()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Open Project...
+                      </span>
+                    )}
+                  </Button>
+                }
+              />
+            </div>
+            {/* File tree */}
+            {currentWorkingDir && <FileTree />}
           </div>
         </CollapsibleSection>
 
