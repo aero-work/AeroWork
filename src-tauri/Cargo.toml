@@ -34,6 +34,10 @@ axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
+[[bin]]
+name = "aero-server"
+path = "src/bin/server.rs"
+
 [features]
 default = ["websocket"]
 websocket = []
