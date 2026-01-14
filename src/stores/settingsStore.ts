@@ -41,7 +41,7 @@ export interface PermissionRule {
 /**
  * Settings panel type
  */
-export type SettingsPanel = "mcp" | "models" | "permissions" | "general" | null;
+export type SettingsPanel = "general" | "agents" | "models" | "mcp" | "permissions" | null;
 
 interface SettingsState {
   // UI State

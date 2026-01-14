@@ -24,6 +24,7 @@ import {
   Server,
   Shield,
   Settings2,
+  Check,
 } from "lucide-react";
 import { agentAPI } from "@/services/api";
 import type { SessionInfo } from "@/types/acp";
@@ -78,9 +79,16 @@ function CollapsibleSection({
 
 function SettingsMenu() {
   const openSettings = useSettingsStore((state) => state.openSettings);
+  const isSettingsOpen = useSettingsStore((state) => state.isOpen);
+  const activePanel = useSettingsStore((state) => state.activePanel);
+  const connectionStatus = useAgentStore((state) => state.connectionStatus);
+  const agentInfo = useAgentStore((state) => state.agentInfo);
+
+  const isConnected = connectionStatus === "connected";
 
   const menuItems = [
     { id: "general", label: "General", icon: Settings2, description: "App preferences" },
+    { id: "agents", label: "Agents", icon: Bot, description: agentInfo ? `${agentInfo.name} v${agentInfo.version}` : "Not connected" },
     { id: "models", label: "Models", icon: Bot, description: "AI model config" },
     { id: "mcp", label: "MCP Servers", icon: Server, description: "Protocol servers" },
     { id: "permissions", label: "Permissions", icon: Shield, description: "Tool access rules" },
@@ -88,26 +96,41 @@ function SettingsMenu() {
 
   return (
     <div className="px-2 space-y-1">
-      {menuItems.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => openSettings(item.id)}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent/50 text-left group"
-        >
-          <item.icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">{item.label}</div>
-            <div className="text-xs text-muted-foreground truncate">{item.description}</div>
-          </div>
-        </button>
-      ))}
+      {menuItems.map((item) => {
+        const isActive = isSettingsOpen && activePanel === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => openSettings(item.id)}
+            className={cn(
+              "w-full flex items-center gap-3 px-2 py-2 rounded-md text-left group",
+              isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+            )}
+          >
+            <div className="relative">
+              <item.icon className={cn(
+                "w-4 h-4",
+                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+              )} />
+              {item.id === "agents" && isConnected && (
+                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">{item.label}</div>
+              <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+            </div>
+            {isActive && <Check className="w-4 h-4 text-primary" />}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 export function Sidebar() {
   const [openSections, setOpenSections] = useState<Set<SidebarSection>>(
-    new Set(["sessions", "files", "agents"])
+    new Set(["sessions", "files", "settings"])
   );
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
 
@@ -117,7 +140,6 @@ export function Sidebar() {
   const availableSessionsLoading = useSessionStore((state) => state.availableSessionsLoading);
 
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
-  const agentInfo = useAgentStore((state) => state.agentInfo);
 
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const showHiddenFiles = useFileStore((state) => state.showHiddenFiles);
@@ -372,39 +394,6 @@ export function Sidebar() {
             ) : (
               <div className="px-4 py-4 text-xs text-muted-foreground text-center">
                 Select a project to view files
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-
-        {/* Agents Section */}
-        <CollapsibleSection
-          title="Agents"
-          icon={<Bot className="w-4 h-4" />}
-          isOpen={openSections.has("agents")}
-          onToggle={() => toggleSection("agents")}
-        >
-          <div className="px-2">
-            {agentInfo ? (
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-accent/50">
-                <div
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    isConnected ? "bg-green-500" : "bg-muted-foreground"
-                  )}
-                />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {agentInfo.title || agentInfo.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    v{agentInfo.version}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="px-2 py-4 text-xs text-muted-foreground text-center">
-                No agent connected
               </div>
             )}
           </div>

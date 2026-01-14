@@ -5,9 +5,10 @@ import { ChatView } from "@/components/chat";
 import { EditorPanel } from "@/components/editor";
 import { TerminalPanel } from "@/components/terminal";
 import { PermissionDialog } from "@/components/common/PermissionDialog";
-import { SettingsDialog } from "@/components/settings";
+import { SettingsPage } from "@/components/settings";
 import { useFileStore } from "@/stores/fileStore";
 import { useTerminalStore } from "@/stores/terminalStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -17,11 +18,20 @@ import {
 export function MainLayout() {
   const hasOpenFiles = useFileStore((state) => state.openFiles.length > 0);
   const isTerminalPanelOpen = useTerminalStore((state) => state.isTerminalPanelOpen);
+  const isSettingsOpen = useSettingsStore((state) => state.isOpen);
 
-  // Main horizontal content (sidebar + chat + optional editor)
+  // Render the main content area (either ChatView or SettingsPage)
+  const renderMainContent = () => {
+    if (isSettingsOpen) {
+      return <SettingsPage />;
+    }
+    return <ChatView />;
+  };
+
+  // Main horizontal content (sidebar + main content + optional editor)
   const renderHorizontalContent = () => {
-    if (hasOpenFiles) {
-      // Three-panel layout: sidebar | chat | editor
+    if (hasOpenFiles && !isSettingsOpen) {
+      // Three-panel layout: sidebar | chat | editor (only when not in settings)
       return (
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Sidebar */}
@@ -32,10 +42,10 @@ export function MainLayout() {
           </ResizablePanel>
           <ResizableHandle />
 
-          {/* Center (chat) */}
+          {/* Center (chat or settings) */}
           <ResizablePanel defaultSize="42%" minSize="5%">
             <div className="h-full border-r overflow-hidden">
-              <ChatView />
+              {renderMainContent()}
             </div>
           </ResizablePanel>
           <ResizableHandle />
@@ -50,7 +60,7 @@ export function MainLayout() {
       );
     }
 
-    // Two-panel layout: sidebar | chat
+    // Two-panel layout: sidebar | main content
     return (
       <ResizablePanelGroup direction="horizontal" className="h-full">
         <ResizablePanel defaultSize="18%" minSize="2%" maxSize="90%">
@@ -61,7 +71,7 @@ export function MainLayout() {
         <ResizableHandle />
         <ResizablePanel defaultSize="82%" minSize="5%">
           <div className="h-full overflow-hidden">
-            <ChatView />
+            {renderMainContent()}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -88,7 +98,6 @@ export function MainLayout() {
       </main>
       <StatusBar />
       <PermissionDialog />
-      <SettingsDialog />
     </div>
   );
 }
