@@ -28,6 +28,7 @@ aero-code/
 │   │   │   ├── session_registry.rs    # SessionRegistry (session file scanning, history loading)
 │   │   │   ├── session_state.rs       # SessionState (chat items, tool calls storage)
 │   │   │   ├── session_state_manager.rs # SessionStateManager (state sync, subscriptions)
+│   │   │   ├── plugins.rs        # PluginManager (marketplace, install/uninstall)
 │   │   │   └── terminal.rs       # TerminalManager (PTY management)
 │   │   └── commands/             # Tauri IPC commands
 │   │       ├── mod.rs
@@ -69,9 +70,10 @@ aero-code/
 │   │   │   ├── index.ts          # Barrel export
 │   │   │   ├── SettingsPage.tsx      # Main settings page with tabs (shown in chat area)
 │   │   │   ├── AgentSettings.tsx     # Agent connection management
-│   │   │   ├── GeneralSettings.tsx   # General app preferences
+│   │   │   ├── GeneralSettings.tsx   # General app preferences (theme, auto-connect, auto-clean)
 │   │   │   ├── ModelSettings.tsx     # AI model configuration
 │   │   │   ├── MCPSettings.tsx       # MCP server management
+│   │   │   ├── PluginsSettings.tsx   # Plugin marketplace management
 │   │   │   └── PermissionSettings.tsx # Tool permission rules
 │   │   ├── ui/                   # shadcn/ui components
 │   │   │   ├── button.tsx
@@ -104,12 +106,14 @@ aero-code/
 │   │   └── api.ts                # AgentAPI class (high-level wrapper)
 │   ├── hooks/                    # Custom React hooks
 │   │   ├── useAutoConnect.ts     # Auto-connect to backend on mount
-│   │   ├── useZoom.ts            # Cmd+/- zoom functionality
+│   │   ├── useZoom.ts            # Cmd+/- zoom functionality (desktop only)
+│   │   ├── useTheme.ts           # Light/Dark/System theme management
 │   │   ├── useIsMobile.ts        # Responsive breakpoint detection
-│   │   ├── useIsDarkMode.ts      # Dark mode detection hook
+│   │   ├── useVisibilityRefresh.ts # Auto-refresh on tab visibility
 │   │   └── useSessionData.ts     # Session data subscription hook
 │   ├── types/
-│   │   └── acp.ts                # ACP protocol types (must match Rust)
+│   │   ├── acp.ts                # ACP protocol types (must match Rust)
+│   │   └── plugins.ts            # Plugin and marketplace types
 │   ├── lib/
 │   │   ├── utils.ts              # cn(), formatters, etc.
 │   │   └── fileTypes.ts          # File type detection, MIME types, language mappings
