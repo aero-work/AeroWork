@@ -8,20 +8,23 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { agentAPI } from "@/services/api";
 
 export function useAutoConnect() {
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
+  const autoConnect = useSettingsStore((state) => state.autoConnect);
   const hasAttemptedConnect = useRef(false);
   const lastRefreshRef = useRef<number>(0);
   const isConnected = connectionStatus === "connected";
 
-  // Initial auto-connect
+  // Initial auto-connect (only if enabled in settings)
   useEffect(() => {
     // Only attempt auto-connect once when app loads
     if (hasAttemptedConnect.current) return;
     if (connectionStatus !== "disconnected") return;
+    if (!autoConnect) return; // Respect auto-connect setting
 
     hasAttemptedConnect.current = true;
 
@@ -31,7 +34,7 @@ export function useAutoConnect() {
       // Reset flag to allow manual retry
       hasAttemptedConnect.current = false;
     });
-  }, [connectionStatus]);
+  }, [connectionStatus, autoConnect]);
 
   // Refresh function for when page becomes visible
   const refreshState = useCallback(async () => {

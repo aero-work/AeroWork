@@ -319,7 +319,7 @@ export function FileTree() {
   const fileTree = useFileStore((state) => state.fileTree);
   const expandedPaths = useFileStore((state) => state.expandedPaths);
   const selectedPath = useFileStore((state) => state.selectedPath);
-  const showHiddenFiles = useFileStore((state) => state.showHiddenFiles);
+  const showHiddenFiles = useSettingsStore((state) => state.showHiddenFiles);
   const updateDirectoryChildren = useFileStore((state) => state.updateDirectoryChildren);
   const toggleDirectory = useFileStore((state) => state.toggleDirectory);
   const setSelectedPath = useFileStore((state) => state.setSelectedPath);

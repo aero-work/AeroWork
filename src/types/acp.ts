@@ -3,6 +3,23 @@ export type ToolCallId = string;
 export type PermissionOptionId = string;
 export type SessionModeId = string;
 
+// MCP Server Types
+export interface MCPServerStdio {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: { name: string; value: string }[];
+}
+
+export interface MCPServerHttp {
+  name: string;
+  type: "http" | "sse";
+  url: string;
+  headers?: { name: string; value: string }[];
+}
+
+export type MCPServer = MCPServerStdio | MCPServerHttp;
+
 export interface Implementation {
   name: string;
   title?: string;
@@ -192,6 +209,11 @@ export type SessionUpdate =
 export interface SessionNotification {
   sessionId: SessionId;
   update: SessionUpdate;
+}
+
+export interface NewSessionParams {
+  cwd: string;
+  mcpServers?: MCPServer[];
 }
 
 export interface NewSessionResponse {

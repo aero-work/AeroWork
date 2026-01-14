@@ -11,6 +11,7 @@ import type {
   Implementation,
   AgentCapabilities,
   AuthMethod,
+  MCPServer,
 } from "@/types/acp";
 
 export interface InitializeResponse {
@@ -27,7 +28,7 @@ export interface Transport {
 
   initialize(): Promise<InitializeResponse>;
 
-  createSession(cwd: string): Promise<NewSessionResponse>;
+  createSession(cwd: string, mcpServers?: MCPServer[]): Promise<NewSessionResponse>;
 
   // Session management
   resumeSession(sessionId: string, cwd: string): Promise<NewSessionResponse>;

@@ -53,8 +53,6 @@ interface FileState {
   activeFilePath: string | null;
   // Main view mode (chat or editor)
   mainViewMode: MainViewMode;
-  // Settings
-  showHiddenFiles: boolean;
   // Refresh trigger (increment to trigger reload)
   refreshTrigger: number;
 }
@@ -82,8 +80,6 @@ interface FileActions {
   setMainViewMode: (mode: MainViewMode) => void;
   showChat: () => void;
   showEditor: () => void;
-  // Settings
-  toggleHiddenFiles: () => void;
   // Refresh
   triggerRefresh: () => void;
 }
@@ -101,7 +97,6 @@ export const useFileStore = create<FileState & FileActions>()(
       openFiles: [],
       activeFilePath: null,
       mainViewMode: "chat",
-      showHiddenFiles: false,
       refreshTrigger: 0,
 
       setWorkingDir: (path) => {
@@ -317,12 +312,6 @@ export const useFileStore = create<FileState & FileActions>()(
         });
       },
 
-      toggleHiddenFiles: () => {
-        set((state) => {
-          state.showHiddenFiles = !state.showHiddenFiles;
-        });
-      },
-
       triggerRefresh: () => {
         set((state) => {
           state.refreshTrigger += 1;
@@ -334,7 +323,6 @@ export const useFileStore = create<FileState & FileActions>()(
       partialize: (state) => ({
         recentProjects: state.recentProjects,
         currentWorkingDir: state.currentWorkingDir,
-        showHiddenFiles: state.showHiddenFiles,
       }),
     }
   )

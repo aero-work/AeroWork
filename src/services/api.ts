@@ -24,6 +24,7 @@ import type {
   PermissionRequest,
   PermissionOutcome,
   SessionUpdate,
+  MCPServer,
 } from "@/types/acp";
 
 class AgentAPI {
@@ -96,12 +97,35 @@ class AgentAPI {
   }
 
   /**
+   * Convert settings MCP server format to ACP protocol format
+   */
+  private getMcpServers(): MCPServer[] {
+    const settingsStore = useSettingsStore.getState();
+    const enabledServers = settingsStore.mcpServers.filter(s => s.enabled);
+
+    return enabledServers.map(server => {
+      // Convert env from Record<string, string> to array format
+      const envArray = server.env
+        ? Object.entries(server.env).map(([name, value]) => ({ name, value }))
+        : undefined;
+
+      return {
+        name: server.name,
+        command: server.command,
+        args: server.args,
+        env: envArray,
+      };
+    });
+  }
+
+  /**
    * Create a new session
    */
   async createSession(cwd?: string): Promise<SessionId> {
     const transport = getTransport();
     const workingDir = cwd || "/";
-    const response = await transport.createSession(workingDir);
+    const mcpServers = this.getMcpServers();
+    const response = await transport.createSession(workingDir, mcpServers);
     // activeSessionId is set via backend broadcast (session/activated)
     return response.sessionId;
   }

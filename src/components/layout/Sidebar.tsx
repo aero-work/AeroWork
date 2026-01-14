@@ -108,8 +108,8 @@ export function Sidebar() {
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const showChat = useFileStore((state) => state.showChat);
   const closeSettings = useSettingsStore((state) => state.closeSettings);
-  const showHiddenFiles = useFileStore((state) => state.showHiddenFiles);
-  const toggleHiddenFiles = useFileStore((state) => state.toggleHiddenFiles);
+  const showHiddenFiles = useSettingsStore((state) => state.showHiddenFiles);
+  const setShowHiddenFiles = useSettingsStore((state) => state.setShowHiddenFiles);
 
   const isConnected = connectionStatus === "connected";
 
@@ -348,7 +348,7 @@ export function Sidebar() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={toggleHiddenFiles}
+                onClick={() => setShowHiddenFiles(!showHiddenFiles)}
                 title={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
               >
                 {showHiddenFiles ? (

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Server, Terminal, AlertCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2, Server, Terminal, AlertCircle, Settings } from "lucide-react";
 
 export function MCPSettings() {
   const mcpServers = useSettingsStore((state) => state.mcpServers);
@@ -20,6 +21,23 @@ export function MCPSettings() {
     enabled: true,
   });
   const [argsInput, setArgsInput] = useState("");
+  const [envInput, setEnvInput] = useState("");
+
+  // Parse environment variables from KEY=VALUE format (one per line)
+  const parseEnvInput = (input: string): Record<string, string> | undefined => {
+    if (!input.trim()) return undefined;
+    const env: Record<string, string> = {};
+    input.split("\n").forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && trimmed.includes("=")) {
+        const [key, ...valueParts] = trimmed.split("=");
+        if (key) {
+          env[key.trim()] = valueParts.join("=").trim();
+        }
+      }
+    });
+    return Object.keys(env).length > 0 ? env : undefined;
+  };
 
   const handleAddServer = () => {
     if (newServer.name && newServer.command) {
@@ -27,10 +45,12 @@ export function MCPSettings() {
         name: newServer.name,
         command: newServer.command,
         args: argsInput.split(" ").filter(Boolean),
+        env: parseEnvInput(envInput),
         enabled: true,
       });
       setNewServer({ name: "", command: "", args: [], enabled: true });
       setArgsInput("");
+      setEnvInput("");
       setIsAdding(false);
     }
   };
@@ -140,6 +160,23 @@ export function MCPSettings() {
                     onChange={(e) => setArgsInput(e.target.value)}
                   />
                 </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="server-env">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-3 h-3" />
+                      Environment Variables (optional)
+                    </div>
+                  </Label>
+                  <Textarea
+                    id="server-env"
+                    placeholder="KEY=VALUE (one per line)&#10;e.g.,&#10;ANTHROPIC_API_KEY=sk-...&#10;DEBUG=true"
+                    value={envInput}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEnvInput(e.target.value)}
+                    rows={3}
+                    className="font-mono text-sm"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">
@@ -167,14 +204,15 @@ export function MCPSettings() {
         </>
       )}
 
-      <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
+      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4">
         <div className="flex gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium text-yellow-500 mb-1">Work in Progress</p>
+            <p className="font-medium text-blue-500 mb-1">How MCP Servers Work</p>
             <p className="text-muted-foreground">
-              MCP server integration is under development. Configured servers will be
-              passed to the agent when creating new sessions.
+              Enabled MCP servers are passed to the agent when creating new sessions.
+              They provide additional tools and resources to extend agent capabilities.
+              Changes take effect on the next new session.
             </p>
           </div>
         </div>

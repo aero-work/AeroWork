@@ -3,12 +3,14 @@ import type {
   SessionId,
   SessionInfo,
   ListSessionsResponse,
+  NewSessionParams,
   NewSessionResponse,
   PromptResponse,
   SessionUpdate,
   SessionState,
   PermissionRequest,
   PermissionOutcome,
+  MCPServer,
 } from "@/types/acp";
 import type {
   ListPluginsResponse,
@@ -288,8 +290,12 @@ export class WebSocketTransport implements Transport {
     return this.send<InitializeResponse>("initialize");
   }
 
-  async createSession(cwd: string): Promise<NewSessionResponse> {
-    return this.send<NewSessionResponse>("create_session", { cwd });
+  async createSession(cwd: string, mcpServers?: MCPServer[]): Promise<NewSessionResponse> {
+    const params: NewSessionParams = { cwd };
+    if (mcpServers && mcpServers.length > 0) {
+      params.mcpServers = mcpServers;
+    }
+    return this.send<NewSessionResponse>("create_session", params);
   }
 
   async resumeSession(sessionId: string, cwd: string): Promise<NewSessionResponse> {
