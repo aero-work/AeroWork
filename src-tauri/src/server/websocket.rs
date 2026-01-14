@@ -552,6 +552,63 @@ async fn dispatch_method(
             serde_json::to_value(terminals).map_err(|e| e.to_string())
         }
 
+        // Plugin commands
+        "list_plugins" => {
+            let response = list_plugins_handler()?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "add_marketplace" => {
+            let name = params.get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name parameter")?;
+            let git_url = params.get("gitUrl")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing gitUrl parameter")?;
+            let response = add_marketplace_handler(name, git_url).await?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "delete_marketplace" => {
+            let name = params.get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name parameter")?;
+            let response = delete_marketplace_handler(name)?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "update_marketplace" => {
+            let name = params.get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name parameter")?;
+            let response = update_marketplace_handler(name).await?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "install_plugin" => {
+            let plugin_name = params.get("pluginName")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing pluginName parameter")?;
+            let marketplace_name = params.get("marketplaceName")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing marketplaceName parameter")?;
+            let response = install_plugin_handler(plugin_name, marketplace_name)?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "uninstall_plugin" => {
+            let plugin_key = params.get("pluginKey")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing pluginKey parameter")?;
+            let response = uninstall_plugin_handler(plugin_key)?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "toggle_marketplace" => {
+            let name = params.get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name parameter")?;
+            let enabled = params.get("enabled")
+                .and_then(|v| v.as_bool())
+                .ok_or("Missing enabled parameter")?;
+            let response = toggle_marketplace_handler(name, enabled)?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+
         _ => Err(format!("Unknown method: {}", method)),
     }
 }
@@ -885,9 +942,21 @@ async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &
     let response = match manager.prompt(session_id, content).await {
         Ok(resp) => resp,
         Err(e) => {
-            let error_msg = e.to_string();
             // Check if error is "Session not found" - need to resume
-            if error_msg.contains("Session not found") || error_msg.contains("session not found") {
+            let is_session_not_found = match &e {
+                crate::acp::AcpError::Rpc { message, data, .. } => {
+                    // Check message or data.details for "Session not found"
+                    message.to_lowercase().contains("session not found") ||
+                    data.as_ref()
+                        .and_then(|d| d.get("details"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_lowercase().contains("session not found"))
+                        .unwrap_or(false)
+                }
+                _ => false,
+            };
+
+            if is_session_not_found {
                 warn!("WebSocket: Session {} not found in ACP agent, attempting auto-resume...", session_id);
 
                 // Get session info to find cwd
@@ -956,7 +1025,7 @@ async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &
                 manager.prompt(&resume_response.session_id, content).await
                     .map_err(|e| format!("Failed to send prompt after resume: {}", e))?
             } else {
-                return Err(error_msg);
+                return Err(e.to_string());
             }
         }
     };
@@ -1118,4 +1187,46 @@ async fn kill_terminal_handler(state: &Arc<AppState>, terminal_id: &str) -> Resu
 
 async fn list_terminals_handler(state: &Arc<AppState>) -> Result<Vec<TerminalInfo>, String> {
     Ok(state.terminal_manager.list_terminals())
+}
+
+// Plugin handlers
+use crate::core::{
+    AddMarketplaceRequest, InstallPluginRequest, InstallPluginResponse,
+    ListPluginsResponse, MarketplaceResponse, PluginManager, UninstallPluginResponse,
+};
+
+fn list_plugins_handler() -> Result<ListPluginsResponse, String> {
+    PluginManager::list_plugins()
+}
+
+async fn add_marketplace_handler(name: &str, git_url: &str) -> Result<MarketplaceResponse, String> {
+    let request = AddMarketplaceRequest {
+        name: name.to_string(),
+        git_url: git_url.to_string(),
+    };
+    PluginManager::add_marketplace(request).await
+}
+
+fn delete_marketplace_handler(name: &str) -> Result<MarketplaceResponse, String> {
+    PluginManager::delete_marketplace(name)
+}
+
+async fn update_marketplace_handler(name: &str) -> Result<MarketplaceResponse, String> {
+    PluginManager::update_marketplace(name).await
+}
+
+fn install_plugin_handler(plugin_name: &str, marketplace_name: &str) -> Result<InstallPluginResponse, String> {
+    let request = InstallPluginRequest {
+        plugin_name: plugin_name.to_string(),
+        marketplace_name: marketplace_name.to_string(),
+    };
+    PluginManager::install_plugin(request)
+}
+
+fn uninstall_plugin_handler(plugin_key: &str) -> Result<UninstallPluginResponse, String> {
+    PluginManager::uninstall_plugin(plugin_key)
+}
+
+fn toggle_marketplace_handler(name: &str, enabled: bool) -> Result<MarketplaceResponse, String> {
+    PluginManager::toggle_marketplace(name, enabled)
 }

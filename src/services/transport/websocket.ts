@@ -10,6 +10,12 @@ import type {
   PermissionRequest,
   PermissionOutcome,
 } from "@/types/acp";
+import type {
+  ListPluginsResponse,
+  MarketplaceResponse,
+  InstallPluginResponse,
+  UninstallPluginResponse,
+} from "@/types/plugins";
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -460,5 +466,56 @@ export class WebSocketTransport implements Transport {
         this.eventHandlers.delete(eventKey);
       }
     };
+  }
+
+  // === Plugin Methods ===
+
+  /**
+   * List all marketplaces and their plugins
+   */
+  async listPlugins(): Promise<ListPluginsResponse> {
+    return this.send<ListPluginsResponse>("list_plugins");
+  }
+
+  /**
+   * Add a new marketplace by cloning a git repository
+   */
+  async addMarketplace(name: string, gitUrl: string): Promise<MarketplaceResponse> {
+    return this.send<MarketplaceResponse>("add_marketplace", { name, gitUrl });
+  }
+
+  /**
+   * Delete a marketplace
+   */
+  async deleteMarketplace(name: string): Promise<MarketplaceResponse> {
+    return this.send<MarketplaceResponse>("delete_marketplace", { name });
+  }
+
+  /**
+   * Update a marketplace by pulling latest changes
+   */
+  async updateMarketplace(name: string): Promise<MarketplaceResponse> {
+    return this.send<MarketplaceResponse>("update_marketplace", { name });
+  }
+
+  /**
+   * Install/enable a plugin
+   */
+  async installPlugin(pluginName: string, marketplaceName: string): Promise<InstallPluginResponse> {
+    return this.send<InstallPluginResponse>("install_plugin", { pluginName, marketplaceName });
+  }
+
+  /**
+   * Uninstall/disable a plugin
+   */
+  async uninstallPlugin(pluginKey: string): Promise<UninstallPluginResponse> {
+    return this.send<UninstallPluginResponse>("uninstall_plugin", { pluginKey });
+  }
+
+  /**
+   * Toggle marketplace enabled state
+   */
+  async toggleMarketplace(name: string, enabled: boolean): Promise<MarketplaceResponse> {
+    return this.send<MarketplaceResponse>("toggle_marketplace", { name, enabled });
   }
 }

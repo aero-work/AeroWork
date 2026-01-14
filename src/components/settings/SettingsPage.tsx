@@ -1,20 +1,21 @@
 import { useSettingsStore, type SettingsPanel } from "@/stores/settingsStore";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Settings2, Bot, Server, Shield } from "lucide-react";
+import { X, Settings2, Bot, Server, Shield, Puzzle } from "lucide-react";
 import { MCPSettings } from "./MCPSettings";
 import { ModelSettings } from "./ModelSettings";
 import { PermissionSettings } from "./PermissionSettings";
 import { GeneralSettings } from "./GeneralSettings";
 import { AgentSettings } from "./AgentSettings";
+import { PluginsSettings } from "./PluginsSettings";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAgentStore } from "@/stores/agentStore";
 
 const PANEL_CONFIG: { id: SettingsPanel; label: string; icon: React.ReactNode }[] = [
   { id: "general", label: "General", icon: <Settings2 className="w-4 h-4" /> },
   { id: "agents", label: "Agents", icon: <Bot className="w-4 h-4" /> },
   { id: "models", label: "Models", icon: <Bot className="w-4 h-4" /> },
   { id: "mcp", label: "MCP Servers", icon: <Server className="w-4 h-4" /> },
+  { id: "plugins", label: "Plugins", icon: <Puzzle className="w-4 h-4" /> },
   { id: "permissions", label: "Permissions", icon: <Shield className="w-4 h-4" /> },
 ];
 
@@ -22,9 +23,6 @@ export function SettingsPage() {
   const activePanel = useSettingsStore((state) => state.activePanel);
   const setActivePanel = useSettingsStore((state) => state.setActivePanel);
   const closeSettings = useSettingsStore((state) => state.closeSettings);
-  const connectionStatus = useAgentStore((state) => state.connectionStatus);
-
-  const isConnected = connectionStatus === "connected";
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -56,12 +54,7 @@ export function SettingsPage() {
                 className="relative h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
               >
                 <div className="flex items-center gap-2">
-                  <div className="relative">
-                    {panel.icon}
-                    {panel.id === "agents" && isConnected && (
-                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500" />
-                    )}
-                  </div>
+                  {panel.icon}
                   <span className="hidden sm:inline">{panel.label}</span>
                 </div>
               </TabsTrigger>
@@ -85,6 +78,10 @@ export function SettingsPage() {
 
             <TabsContent value="mcp" className="m-0 mt-0">
               <MCPSettings />
+            </TabsContent>
+
+            <TabsContent value="plugins" className="m-0 mt-0">
+              <PluginsSettings />
             </TabsContent>
 
             <TabsContent value="permissions" className="m-0 mt-0">
