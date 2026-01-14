@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminalOutput {
     pub terminal_id: String,
     pub data: String,
