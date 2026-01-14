@@ -196,6 +196,12 @@ class AgentAPI {
       throw error;
     } finally {
       sessionStore.setLoading(false);
+      // Clean up permission state in case of error during prompt
+      // This ensures dialog closes if prompt fails after showing permission request
+      if (this.permissionResolver) {
+        this.permissionResolver = null;
+        agentStore.setPendingPermission(null);
+      }
     }
   }
 

@@ -344,6 +344,19 @@ export function FileTree() {
   // Track if we've loaded since connection
   const hasLoadedRef = useRef(false);
 
+  // Refs to avoid stale closures in effects that shouldn't re-run on these changes
+  const loadDirectoryRef = useRef<(path: string) => Promise<void>>(undefined);
+  const expandedPathsRef = useRef(expandedPaths);
+  const isConnectedRef = useRef(isConnected);
+  const currentWorkingDirRef = useRef(currentWorkingDir);
+
+  // Keep refs updated
+  useEffect(() => {
+    expandedPathsRef.current = expandedPaths;
+    isConnectedRef.current = isConnected;
+    currentWorkingDirRef.current = currentWorkingDir;
+  });
+
   // Load directory contents
   const loadDirectory = useCallback(
     async (path: string) => {
@@ -368,6 +381,11 @@ export function FileTree() {
     [showHiddenFiles, updateDirectoryChildren, setDirectoryLoading]
   );
 
+  // Keep loadDirectory ref updated
+  useEffect(() => {
+    loadDirectoryRef.current = loadDirectory;
+  }, [loadDirectory]);
+
   // Load root directory when connected and working dir is set
   useEffect(() => {
     if (isConnected && currentWorkingDir) {
@@ -387,12 +405,18 @@ export function FileTree() {
   const refreshTrigger = useFileStore((state) => state.refreshTrigger);
 
   // Reload when hidden files toggle changes or refresh is triggered
+  // Uses refs to avoid triggering on every isConnected/currentWorkingDir/expandedPaths change
   useEffect(() => {
-    if (isConnected && currentWorkingDir) {
-      loadDirectory(currentWorkingDir);
+    const loadDir = loadDirectoryRef.current;
+    const cwd = currentWorkingDirRef.current;
+    const connected = isConnectedRef.current;
+    const expanded = expandedPathsRef.current;
+
+    if (connected && cwd && loadDir) {
+      loadDir(cwd);
       // Also reload expanded directories
-      expandedPaths.forEach((path) => {
-        loadDirectory(path);
+      expanded.forEach((path) => {
+        loadDir(path);
       });
     }
   }, [showHiddenFiles, refreshTrigger]);

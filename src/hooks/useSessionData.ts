@@ -341,51 +341,34 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
 
     loadState();
 
-    // Setup update listener
+    // Setup update listeners using public transport API
     const transport = getTransport() as WebSocketTransport;
 
-    // Listen for session updates (from ACP agent)
+    // Listen for ACP session updates (real-time updates from agent during prompts)
     const handleUpdate = (update: SessionUpdate) => {
       if (currentSessionRef.current === sessionId) {
         applyUpdate(update);
       }
     };
 
-    // Listen for state updates (from backend - includes cross-client syncing)
+    // Listen for backend state updates (cross-client syncing)
     const handleStateUpdate = (update: SessionStateUpdate) => {
       if (currentSessionRef.current === sessionId) {
         applyStateUpdate(update);
       }
     };
 
-    // Register handler for this session's updates
-    const eventHandlers = (transport as any).eventHandlers as Map<string, Set<(data: unknown) => void>>;
+    // Use public API methods - they return unsubscribe functions
+    const unsubscribeSessionUpdate = transport.onSessionUpdate(sessionId, handleUpdate);
+    const unsubscribeStateUpdate = transport.onSessionStateUpdate(
+      sessionId,
+      handleStateUpdate as (update: unknown) => void
+    );
 
-    // Register for ACP session updates
-    const eventKey = `session-update-${sessionId}`;
-    if (!eventHandlers.has(eventKey)) {
-      eventHandlers.set(eventKey, new Set());
-    }
-    eventHandlers.get(eventKey)!.add(handleUpdate as (data: unknown) => void);
-
-    // Register for backend state updates (cross-client sync)
-    const stateUpdateKey = `session-state-update-${sessionId}`;
-    if (!eventHandlers.has(stateUpdateKey)) {
-      eventHandlers.set(stateUpdateKey, new Set());
-    }
-    eventHandlers.get(stateUpdateKey)!.add(handleStateUpdate as (data: unknown) => void);
-
-    // Cleanup
+    // Cleanup using returned unsubscribe functions
     return () => {
-      eventHandlers.get(eventKey)?.delete(handleUpdate as (data: unknown) => void);
-      if (eventHandlers.get(eventKey)?.size === 0) {
-        eventHandlers.delete(eventKey);
-      }
-
-      eventHandlers.get(stateUpdateKey)?.delete(handleStateUpdate as (data: unknown) => void);
-      if (eventHandlers.get(stateUpdateKey)?.size === 0) {
-        eventHandlers.delete(stateUpdateKey);
-      }
+      unsubscribeSessionUpdate();
+      unsubscribeStateUpdate();
     };
   }, [sessionId, fetchSessionState, applyUpdate, applyStateUpdate]);
 
@@ -401,13 +384,10 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
       refresh();
     };
 
-    // Listen for reconnection (we'll add this event to transport)
-    const reconnectHandler = () => handleReconnect();
-    (transport as any).onReconnect?.(reconnectHandler);
+    // Use public onReconnect API - returns unsubscribe function
+    const unsubscribe = transport.onReconnect(handleReconnect);
 
-    return () => {
-      (transport as any).offReconnect?.(reconnectHandler);
-    };
+    return unsubscribe;
   }, [sessionId, refresh]);
 
   return {

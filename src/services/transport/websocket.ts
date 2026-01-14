@@ -428,7 +428,30 @@ export class WebSocketTransport implements Transport {
   }
 
   /**
+   * Subscribe to ACP session update notifications for a specific session
+   * These are real-time updates from the ACP agent during prompts
+   * @param sessionId - Session ID to listen for updates
+   * @param handler - Callback for session updates
+   * @returns Unsubscribe function
+   */
+  onSessionUpdate(sessionId: string, handler: (update: SessionUpdate) => void): () => void {
+    const eventKey = `session-update-${sessionId}`;
+    if (!this.eventHandlers.has(eventKey)) {
+      this.eventHandlers.set(eventKey, new Set());
+    }
+    this.eventHandlers.get(eventKey)!.add(handler as (data: unknown) => void);
+
+    return () => {
+      this.eventHandlers.get(eventKey)?.delete(handler as (data: unknown) => void);
+      if (this.eventHandlers.get(eventKey)?.size === 0) {
+        this.eventHandlers.delete(eventKey);
+      }
+    };
+  }
+
+  /**
    * Subscribe to session state update notifications for a specific session
+   * These are backend state sync updates (includes cross-client syncing)
    * @param sessionId - Session ID to listen for updates
    * @param handler - Callback for state updates
    * @returns Unsubscribe function

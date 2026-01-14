@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import Editor, { type OnMount, type OnChange } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { useFileStore, useActiveFile } from "@/stores/fileStore";
@@ -13,23 +13,8 @@ export function CodeEditor() {
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const isDark = useIsDarkMode();
 
-  const handleEditorMount: OnMount = useCallback((editor, monaco) => {
-    editorRef.current = editor;
-
-    // Add save command (Ctrl/Cmd+S)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      handleSave();
-    });
-  }, []);
-
-  const handleChange: OnChange = useCallback(
-    (value) => {
-      if (activeFile && value !== undefined) {
-        updateFileContent(activeFile.path, value);
-      }
-    },
-    [activeFile, updateFileContent]
-  );
+  // Use ref to store latest handleSave to avoid stale closure in Monaco command
+  const handleSaveRef = useRef<() => Promise<void>>(undefined);
 
   const handleSave = useCallback(async () => {
     if (!activeFile || !activeFile.isDirty) return;
@@ -41,6 +26,30 @@ export function CodeEditor() {
       console.error("Failed to save file:", error);
     }
   }, [activeFile, markFileSaved]);
+
+  // Keep ref updated with latest handleSave
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
+  const handleEditorMount: OnMount = useCallback((editor, monaco) => {
+    editorRef.current = editor;
+
+    // Add save command (Ctrl/Cmd+S)
+    // Use ref to always call the latest handleSave version
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      handleSaveRef.current?.();
+    });
+  }, []);
+
+  const handleChange: OnChange = useCallback(
+    (value) => {
+      if (activeFile && value !== undefined) {
+        updateFileContent(activeFile.path, value);
+      }
+    },
+    [activeFile, updateFileContent]
+  );
 
   if (!activeFile) {
     return (
