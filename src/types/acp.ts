@@ -219,6 +219,8 @@ export type ChatItem =
 export interface Session {
   id: SessionId;
   name: string;
+  // Working directory for the session
+  cwd?: string;
   // Unified ordered list of all chat items (messages + tool calls)
   chatItems: ChatItem[];
   // Map for quick lookup of tool calls by ID (for updates)
@@ -230,3 +232,55 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
 }
+
+// Session info from backend (list_sessions response)
+export interface SessionInfo {
+  id: SessionId;
+  summary: string;
+  messageCount: number;
+  lastActivity: string;
+  cwd: string;
+  active: boolean;
+  project?: string;
+  lastUserMessage?: string;
+  lastAssistantMessage?: string;
+}
+
+export interface ListSessionsResponse {
+  sessions: SessionInfo[];
+  hasMore: boolean;
+  total: number;
+}
+
+// === Backend-driven Session State Types ===
+
+/**
+ * SessionState from backend - single source of truth
+ * Matches the Rust SessionState struct
+ */
+export interface SessionState {
+  id: SessionId;
+  cwd: string;
+  chatItems: ChatItem[];
+  plan?: Plan;
+  modes?: SessionModeState;
+  models?: SessionModelState;
+  availableCommands?: AvailableCommand[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Delta updates from backend for efficient sync
+ * Matches the Rust SessionStateUpdate enum
+ */
+export type SessionStateUpdate =
+  | { updateType: "message_chunk"; content: string }
+  | { updateType: "message_added"; message: Message }
+  | { updateType: "tool_call_added"; toolCall: ToolCall }
+  | { updateType: "tool_call_updated"; toolCall: ToolCall }
+  | { updateType: "plan_updated"; plan: Plan }
+  | { updateType: "available_commands_updated"; commands: AvailableCommand[] }
+  | { updateType: "current_mode_updated"; modeId: SessionModeId }
+  | { updateType: "full_state"; state: SessionState }
+  | { updateType: "noop" };

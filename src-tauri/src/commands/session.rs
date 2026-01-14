@@ -3,7 +3,7 @@ use tauri::State;
 use tracing::{error, info};
 
 use crate::acp::{AcpError, NewSessionResponse, PromptResponse};
-use crate::core::{AgentManager, AppState};
+use crate::core::{AgentManager, AppState, ListSessionsResponse, SessionInfo};
 
 #[tauri::command]
 pub async fn create_session(
@@ -19,8 +19,111 @@ pub async fn create_session(
         e.to_string()
     })?;
 
+    // Register session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd,
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
     info!("Created session: {}", response.session_id);
     Ok(response)
+}
+
+/// Resume an existing session
+#[tauri::command]
+pub async fn resume_session(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+    cwd: String,
+) -> Result<NewSessionResponse, String> {
+    info!("Resuming session {} in {}", session_id, cwd);
+
+    let manager = AgentManager::new(state.client.clone());
+
+    let response = manager
+        .resume_session(&session_id, &cwd)
+        .await
+        .map_err(|e: AcpError| {
+            error!("Failed to resume session: {}", e);
+            e.to_string()
+        })?;
+
+    // Register session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd,
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    info!("Resumed session: {}", response.session_id);
+    Ok(response)
+}
+
+/// Fork an existing session (creates new session from existing one)
+#[tauri::command]
+pub async fn fork_session(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+    cwd: String,
+) -> Result<NewSessionResponse, String> {
+    info!("Forking session {} in {}", session_id, cwd);
+
+    let manager = AgentManager::new(state.client.clone());
+
+    let response = manager
+        .fork_session(&session_id, &cwd)
+        .await
+        .map_err(|e: AcpError| {
+            error!("Failed to fork session: {}", e);
+            e.to_string()
+        })?;
+
+    // Register new session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd,
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    info!("Forked session {} -> {}", session_id, response.session_id);
+    Ok(response)
+}
+
+/// List available sessions (active + historical)
+#[tauri::command]
+pub async fn list_sessions(
+    state: State<'_, Arc<AppState>>,
+    cwd: Option<String>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<ListSessionsResponse, String> {
+    let limit = limit.unwrap_or(20);
+    let offset = offset.unwrap_or(0);
+
+    info!("Listing sessions (cwd={:?}, limit={}, offset={})", cwd, limit, offset);
+
+    let response = state.session_registry.list_sessions(cwd.as_deref(), limit, offset);
+
+    info!("Found {} sessions (total: {})", response.sessions.len(), response.total);
+    Ok(response)
+}
+
+/// Get session info by ID
+#[tauri::command]
+pub async fn get_session_info(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+) -> Result<SessionInfo, String> {
+    info!("Getting session info: {}", session_id);
+
+    state
+        .session_registry
+        .get_session_info(&session_id)
+        .ok_or_else(|| format!("Session not found: {}", session_id))
 }
 
 #[tauri::command]

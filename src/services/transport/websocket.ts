@@ -1,9 +1,12 @@
 import type { Transport, InitializeResponse } from "./types";
 import type {
   SessionId,
+  SessionInfo,
+  ListSessionsResponse,
   NewSessionResponse,
   PromptResponse,
   SessionUpdate,
+  SessionState,
   PermissionRequest,
   PermissionOutcome,
 } from "@/types/acp";
@@ -46,6 +49,8 @@ export class WebSocketTransport implements Transport {
   private permissionHandler:
     | ((request: PermissionRequest) => Promise<PermissionOutcome>)
     | null = null;
+  private sessionActivatedHandler: ((sessionId: string | null) => void) | null = null;
+  private reconnectHandlers = new Set<() => void>();
 
   constructor(url: string) {
     this.url = url;
@@ -102,9 +107,32 @@ export class WebSocketTransport implements Transport {
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
       console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
       setTimeout(() => {
-        this.connect().catch(console.error);
+        this.connect()
+          .then(() => {
+            // Notify reconnect handlers
+            console.log("Reconnected, notifying handlers...");
+            this.reconnectHandlers.forEach((handler) => handler());
+          })
+          .catch(console.error);
       }, delay);
     }
+  }
+
+  /**
+   * Register a handler to be called when WebSocket reconnects
+   */
+  onReconnect(handler: () => void): () => void {
+    this.reconnectHandlers.add(handler);
+    return () => {
+      this.reconnectHandlers.delete(handler);
+    };
+  }
+
+  /**
+   * Remove a reconnect handler
+   */
+  offReconnect(handler: () => void): void {
+    this.reconnectHandlers.delete(handler);
   }
 
   private handleMessage(data: string) {
@@ -172,6 +200,33 @@ export class WebSocketTransport implements Transport {
         }
         break;
       }
+      case "session/activated": {
+        const { sessionId } = params as { sessionId: string | null };
+        if (this.sessionActivatedHandler) {
+          this.sessionActivatedHandler(sessionId);
+        }
+        break;
+      }
+      case "session/state_update": {
+        const { sessionId, update } = params as {
+          sessionId: string;
+          update: unknown;
+        };
+        const handlers = this.eventHandlers.get(`session-state-update-${sessionId}`);
+        if (handlers) {
+          for (const handler of handlers) {
+            handler(update);
+          }
+        }
+        // Also broadcast to generic handler for all sessions
+        const globalHandlers = this.eventHandlers.get("session-state-update");
+        if (globalHandlers) {
+          for (const handler of globalHandlers) {
+            handler({ sessionId, update });
+          }
+        }
+        break;
+      }
       default:
         console.log("Unhandled notification:", method, params);
     }
@@ -231,11 +286,28 @@ export class WebSocketTransport implements Transport {
     return this.send<NewSessionResponse>("create_session", { cwd });
   }
 
+  async resumeSession(sessionId: string, cwd: string): Promise<NewSessionResponse> {
+    return this.send<NewSessionResponse>("resume_session", { sessionId, cwd });
+  }
+
+  async forkSession(sessionId: string, cwd: string): Promise<NewSessionResponse> {
+    return this.send<NewSessionResponse>("fork_session", { sessionId, cwd });
+  }
+
+  async listSessions(cwd?: string, limit?: number, offset?: number): Promise<ListSessionsResponse> {
+    return this.send<ListSessionsResponse>("list_sessions", { cwd, limit, offset });
+  }
+
+  async getSessionInfo(sessionId: string): Promise<SessionInfo> {
+    return this.send<SessionInfo>("get_session_info", { sessionId });
+  }
+
   async prompt(
     sessionId: SessionId,
     content: string,
     onUpdate: (update: SessionUpdate) => void,
-    onPermissionRequest: (request: PermissionRequest) => Promise<PermissionOutcome>
+    onPermissionRequest: (request: PermissionRequest) => Promise<PermissionOutcome>,
+    messageId?: string
   ): Promise<PromptResponse> {
     // Set up event handler for session updates
     const eventKey = `session-update-${sessionId}`;
@@ -253,6 +325,7 @@ export class WebSocketTransport implements Transport {
       const response = await this.send<PromptResponse>("send_prompt", {
         sessionId,
         content,
+        messageId, // Pass messageId to backend for deduplication
       });
       return response;
     } finally {
@@ -283,6 +356,109 @@ export class WebSocketTransport implements Transport {
 
     return () => {
       this.eventHandlers.get(eventKey)?.delete(handler as (data: unknown) => void);
+    };
+  }
+
+  // Session activation subscription
+  onSessionActivated(handler: (sessionId: string | null) => void): () => void {
+    this.sessionActivatedHandler = handler;
+    return () => {
+      this.sessionActivatedHandler = null;
+    };
+  }
+
+  // Get current active session from backend
+  async getCurrentSession(): Promise<string | null> {
+    const result = await this.send<{ sessionId: string | null }>("get_current_session");
+    return result.sessionId;
+  }
+
+  // Set current active session on backend (broadcasts to all clients)
+  async setCurrentSession(sessionId: string | null): Promise<void> {
+    await this.send("set_current_session", { sessionId });
+  }
+
+  // === Session State Subscription Methods ===
+
+  /**
+   * Get the client ID assigned by the backend
+   */
+  async getClientId(): Promise<string> {
+    const result = await this.send<{ clientId: string }>("get_client_id");
+    return result.clientId;
+  }
+
+  /**
+   * Subscribe to session state updates
+   * Returns the current session state and starts receiving updates
+   * @param sessionId - Session ID to subscribe to
+   * @param autoResume - If true, automatically resume historical sessions (default: true)
+   */
+  async subscribeSession(sessionId: SessionId, autoResume = true): Promise<SessionState> {
+    return this.send<SessionState>("subscribe_session", { sessionId, autoResume });
+  }
+
+  /**
+   * Unsubscribe from session state updates
+   */
+  async unsubscribeSession(sessionId: SessionId): Promise<void> {
+    await this.send("unsubscribe_session", { sessionId });
+  }
+
+  /**
+   * Get session state without subscribing (one-time fetch)
+   * @param sessionId - Session ID to get state for
+   * @param autoResume - If true, automatically resume historical sessions (default: true)
+   */
+  async getSessionState(sessionId: SessionId, autoResume = true): Promise<SessionState> {
+    return this.send<SessionState>("get_session_state", { sessionId, autoResume });
+  }
+
+  /**
+   * Generic request method for hooks
+   */
+  async request<T>(method: string, params?: unknown): Promise<T> {
+    return this.send<T>(method, params);
+  }
+
+  /**
+   * Subscribe to session state update notifications for a specific session
+   * @param sessionId - Session ID to listen for updates
+   * @param handler - Callback for state updates
+   * @returns Unsubscribe function
+   */
+  onSessionStateUpdate(sessionId: string, handler: (update: unknown) => void): () => void {
+    const eventKey = `session-state-update-${sessionId}`;
+    if (!this.eventHandlers.has(eventKey)) {
+      this.eventHandlers.set(eventKey, new Set());
+    }
+    this.eventHandlers.get(eventKey)!.add(handler);
+
+    return () => {
+      this.eventHandlers.get(eventKey)?.delete(handler);
+      if (this.eventHandlers.get(eventKey)?.size === 0) {
+        this.eventHandlers.delete(eventKey);
+      }
+    };
+  }
+
+  /**
+   * Subscribe to all session state update notifications
+   * @param handler - Callback receiving { sessionId, update }
+   * @returns Unsubscribe function
+   */
+  onAnySessionStateUpdate(handler: (data: { sessionId: string; update: unknown }) => void): () => void {
+    const eventKey = "session-state-update";
+    if (!this.eventHandlers.has(eventKey)) {
+      this.eventHandlers.set(eventKey, new Set());
+    }
+    this.eventHandlers.get(eventKey)!.add(handler as (data: unknown) => void);
+
+    return () => {
+      this.eventHandlers.get(eventKey)?.delete(handler as (data: unknown) => void);
+      if (this.eventHandlers.get(eventKey)?.size === 0) {
+        this.eventHandlers.delete(eventKey);
+      }
     };
   }
 }

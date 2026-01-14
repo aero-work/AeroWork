@@ -11,10 +11,11 @@ use axum::{
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
+use uuid::Uuid;
 
-use crate::acp::{AcpError, InitializeResponse, NewSessionResponse, PermissionOutcome, PromptResponse};
-use crate::core::{AgentManager, AppState};
+use crate::acp::{AcpError, InitializeResponse, NewSessionResponse, PermissionOutcome, PromptResponse, SessionId};
+use crate::core::{AgentManager, AppState, ClientId, SessionState};
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -104,12 +105,20 @@ impl WebSocketServer {
     }
 
     async fn start_event_forwarding(state: Arc<AppState>, event_tx: broadcast::Sender<String>) {
-        // Forward session notifications
+        // Forward session notifications and apply to SessionStateManager
         let notification_rx = state.notification_rx.write().take();
         if let Some(mut rx) = notification_rx {
             let tx = event_tx.clone();
+            let session_state_manager = state.session_state_manager.clone();
             tokio::spawn(async move {
                 while let Some(notification) = rx.recv().await {
+                    // Apply update to SessionStateManager (single source of truth)
+                    session_state_manager.apply_update(
+                        &notification.session_id,
+                        notification.update.clone(),
+                    );
+
+                    // Forward to all clients (backward compatibility)
                     let msg = JsonRpcNotification {
                         jsonrpc: "2.0".to_string(),
                         method: "session/update".to_string(),
@@ -160,12 +169,38 @@ impl WebSocketServer {
                 }
             });
         }
+
+        // Forward session activation events
+        let session_activated_rx = state.session_activated_rx.write().take();
+        if let Some(mut rx) = session_activated_rx {
+            let tx = event_tx.clone();
+            tokio::spawn(async move {
+                while let Some(activated) = rx.recv().await {
+                    let msg = JsonRpcNotification {
+                        jsonrpc: "2.0".to_string(),
+                        method: "session/activated".to_string(),
+                        params: serde_json::json!({
+                            "sessionId": activated.session_id,
+                        }),
+                    };
+                    if let Ok(json) = serde_json::to_string(&msg) {
+                        let _ = tx.send(json);
+                    }
+                }
+            });
+        }
     }
 }
 
 struct ServerState {
     app_state: Arc<AppState>,
     event_tx: broadcast::Sender<String>,
+}
+
+/// Per-client state for WebSocket connections
+struct ClientState {
+    client_id: ClientId,
+    subscribed_sessions: std::sync::RwLock<std::collections::HashSet<SessionId>>,
 }
 
 async fn health_handler() -> &'static str {
@@ -181,6 +216,15 @@ async fn ws_handler(
 
 async fn handle_socket(socket: WebSocket, state: Arc<ServerState>) {
     let (mut sender, mut receiver) = socket.split();
+
+    // Generate unique client ID for this connection
+    let client_id = Uuid::new_v4().to_string();
+    let client_state = Arc::new(ClientState {
+        client_id: client_id.clone(),
+        subscribed_sessions: std::sync::RwLock::new(std::collections::HashSet::new()),
+    });
+
+    info!("WebSocket client connected: {}", client_id);
 
     // Subscribe to broadcast events
     let mut event_rx = state.event_tx.subscribe();
@@ -211,7 +255,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<ServerState>) {
     while let Some(result) = receiver.next().await {
         match result {
             Ok(Message::Text(text)) => {
-                let response = handle_message(&text, &state).await;
+                let response = handle_message(&text, &state, &client_state).await;
                 if ws_tx.send(response).await.is_err() {
                     break;
                 }
@@ -219,19 +263,26 @@ async fn handle_socket(socket: WebSocket, state: Arc<ServerState>) {
             Ok(Message::Close(_)) => break,
             Ok(_) => {} // Ignore other message types
             Err(e) => {
-                warn!("WebSocket error: {}", e);
+                warn!("WebSocket error for client {}: {}", client_state.client_id, e);
                 break;
             }
         }
     }
 
-    // Clean up
+    // Clean up: unsubscribe from all sessions
+    {
+        let subscribed = client_state.subscribed_sessions.read().unwrap();
+        for session_id in subscribed.iter() {
+            state.app_state.session_state_manager.unsubscribe(&client_state.client_id, session_id);
+        }
+    }
+
     event_task.abort();
     write_task.abort();
-    info!("WebSocket connection closed");
+    info!("WebSocket client disconnected: {}", client_state.client_id);
 }
 
-async fn handle_message(text: &str, state: &Arc<ServerState>) -> String {
+async fn handle_message(text: &str, state: &Arc<ServerState>, client_state: &Arc<ClientState>) -> String {
     let request: JsonRpcRequest = match serde_json::from_str(text) {
         Ok(r) => r,
         Err(e) => {
@@ -244,7 +295,7 @@ async fn handle_message(text: &str, state: &Arc<ServerState>) -> String {
         }
     };
 
-    let result = dispatch_method(&request.method, request.params, &state.app_state).await;
+    let result = dispatch_method(&request.method, request.params, &state.app_state, client_state, &state.event_tx).await;
 
     match result {
         Ok(value) => serde_json::to_string(&JsonRpcResponse::success(request.id, value)),
@@ -257,10 +308,44 @@ async fn dispatch_method(
     method: &str,
     params: Option<serde_json::Value>,
     state: &Arc<AppState>,
+    client_state: &Arc<ClientState>,
+    event_tx: &broadcast::Sender<String>,
 ) -> Result<serde_json::Value, String> {
     let params = params.unwrap_or(serde_json::Value::Null);
 
     match method {
+        // Session state subscription methods
+        "subscribe_session" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let auto_resume = params.get("autoResume")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            let session_state = subscribe_session_handler(state, client_state, session_id, auto_resume, event_tx).await?;
+            serde_json::to_value(session_state).map_err(|e| e.to_string())
+        }
+        "unsubscribe_session" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            unsubscribe_session_handler(state, client_state, session_id);
+            Ok(serde_json::Value::Null)
+        }
+        "get_session_state" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let auto_resume = params.get("autoResume")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            let session_state = get_session_state_handler(state, session_id, auto_resume).await?;
+            serde_json::to_value(session_state).map_err(|e| e.to_string())
+        }
+        "get_client_id" => {
+            Ok(serde_json::json!({ "clientId": client_state.client_id }))
+        }
+
         // Agent commands
         "connect" => {
             connect_handler(state).await?;
@@ -298,7 +383,10 @@ async fn dispatch_method(
             let content = params.get("content")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing content parameter")?;
-            let response = send_prompt_handler(state, session_id, content).await?;
+            let message_id = params.get("messageId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let response = send_prompt_handler(state, session_id, content, message_id, event_tx).await?;
             serde_json::to_value(response).map_err(|e| e.to_string())
         }
         "cancel_session" => {
@@ -316,6 +404,51 @@ async fn dispatch_method(
                 .and_then(|v| v.as_str())
                 .ok_or("Missing modeId parameter")?;
             set_session_mode_handler(state, session_id, mode_id).await?;
+            Ok(serde_json::Value::Null)
+        }
+        "list_sessions" => {
+            let cwd = params.get("cwd").and_then(|v| v.as_str());
+            let limit = params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
+            let offset = params.get("offset").and_then(|v| v.as_u64()).map(|v| v as usize);
+            let response = list_sessions_handler(state, cwd, limit, offset).await;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "resume_session" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let cwd = params.get("cwd")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing cwd parameter")?;
+            let response = resume_session_handler(state, session_id, cwd).await?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "fork_session" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let cwd = params.get("cwd")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing cwd parameter")?;
+            let response = fork_session_handler(state, session_id, cwd).await?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "get_session_info" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let response = get_session_info_handler(state, session_id).await?;
+            serde_json::to_value(response).map_err(|e| e.to_string())
+        }
+        "get_current_session" => {
+            let session_id = state.get_current_session();
+            Ok(serde_json::json!({ "sessionId": session_id }))
+        }
+        "set_current_session" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            state.set_current_session(session_id).await;
             Ok(serde_json::Value::Null)
         }
 
@@ -425,6 +558,227 @@ async fn dispatch_method(
 
 // Handler implementations (reusing core logic)
 
+// Session state subscription handlers
+
+/// Subscribe to a session, with optional auto-resume for historical sessions
+/// Returns immediately with empty state, loads history in background
+async fn subscribe_session_handler(
+    state: &Arc<AppState>,
+    client_state: &Arc<ClientState>,
+    session_id: &str,
+    auto_resume: bool,
+    event_tx: &broadcast::Sender<String>,
+) -> Result<SessionState, String> {
+    let session_id = session_id.to_string();
+
+    // First, try to subscribe if session already exists in memory
+    let result = state.session_state_manager.subscribe(
+        client_state.client_id.clone(),
+        &session_id,
+    );
+
+    if let Some((session_state, _rx)) = result {
+        // Track subscription in client state
+        {
+            let mut subscribed = client_state.subscribed_sessions.write().unwrap();
+            subscribed.insert(session_id.clone());
+        }
+
+        info!(
+            "Client {} subscribed to session {}",
+            client_state.client_id, session_id
+        );
+
+        return Ok(session_state);
+    }
+
+    // Session not in memory - try auto-resume if enabled
+    if !auto_resume {
+        return Err(format!("Session not found: {}", session_id));
+    }
+
+    info!("Session {} not in memory, attempting auto-resume...", session_id);
+
+    // Check if session exists on disk
+    let session_info = state.session_registry.get_session_info(&session_id)
+        .ok_or_else(|| format!("Session not found on disk: {}", session_id))?;
+
+    let cwd = session_info.cwd.clone();
+
+    // Resume the session via ACP agent
+    let manager = AgentManager::new(state.client.clone());
+    let response = manager.resume_session(&session_id, &cwd).await
+        .map_err(|e| format!("Failed to resume session: {}", e))?;
+
+    info!("Auto-resumed session: {} -> {}", session_id, response.session_id);
+
+    // Register in session registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd.clone(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Create EMPTY session state first (for immediate response)
+    let initial_state = state.session_state_manager.create_session(
+        response.session_id.clone(),
+        cwd.clone(),
+        response.modes,
+        response.models,
+    );
+
+    // Set as current active session
+    state.set_current_session(Some(response.session_id.clone())).await;
+
+    // Subscribe client to the session
+    let result = state.session_state_manager.subscribe(
+        client_state.client_id.clone(),
+        &response.session_id,
+    );
+
+    if result.is_none() {
+        return Err(format!("Failed to subscribe to resumed session: {}", response.session_id));
+    }
+
+    // Track subscription in client state
+    {
+        let mut subscribed = client_state.subscribed_sessions.write().unwrap();
+        subscribed.insert(response.session_id.clone());
+    }
+
+    info!(
+        "Client {} subscribed to auto-resumed session {} (loading history in background)",
+        client_state.client_id, response.session_id
+    );
+
+    // Spawn background task to load history
+    let state_clone = state.clone();
+    let original_session_id = session_id.clone();
+    let new_session_id = response.session_id.clone();
+    let event_tx_clone = event_tx.clone();
+
+    tokio::spawn(async move {
+        // Load historical chat items from JSONL file
+        let chat_items = state_clone.session_registry.load_chat_items(&original_session_id);
+
+        if chat_items.is_empty() {
+            debug!("No historical chat items to load for session {}", original_session_id);
+            return;
+        }
+
+        info!("Background: Loaded {} historical chat items for session {}", chat_items.len(), original_session_id);
+
+        // Update session state with history
+        state_clone.session_state_manager.load_history(&new_session_id, chat_items);
+
+        // Broadcast full state update to all subscribers
+        if let Some(updated_state) = state_clone.session_state_manager.get_state(&new_session_id) {
+            let msg = JsonRpcNotification {
+                jsonrpc: "2.0".to_string(),
+                method: "session/state_update".to_string(),
+                params: serde_json::json!({
+                    "sessionId": new_session_id,
+                    "update": {
+                        "updateType": "full_state",
+                        "state": updated_state
+                    }
+                }),
+            };
+            if let Ok(json) = serde_json::to_string(&msg) {
+                let _ = event_tx_clone.send(json);
+            }
+            info!("Background: Broadcasted full state for session {}", new_session_id);
+        }
+    });
+
+    Ok(initial_state)
+}
+
+fn unsubscribe_session_handler(
+    state: &Arc<AppState>,
+    client_state: &Arc<ClientState>,
+    session_id: &str,
+) {
+    let session_id = session_id.to_string();
+
+    // Unsubscribe from session
+    state.session_state_manager.unsubscribe(&client_state.client_id, &session_id);
+
+    // Remove from client tracking
+    {
+        let mut subscribed = client_state.subscribed_sessions.write().unwrap();
+        subscribed.remove(&session_id);
+    }
+
+    debug!(
+        "Client {} unsubscribed from session {}",
+        client_state.client_id, session_id
+    );
+}
+
+/// Get session state, with optional auto-resume for historical sessions
+async fn get_session_state_handler(
+    state: &Arc<AppState>,
+    session_id: &str,
+    auto_resume: bool,
+) -> Result<SessionState, String> {
+    let session_id_str = session_id.to_string();
+
+    // First, check if session exists in SessionStateManager
+    if let Some(session_state) = state.session_state_manager.get_state(&session_id_str) {
+        return Ok(session_state);
+    }
+
+    // Session not in memory - try auto-resume if enabled
+    if !auto_resume {
+        return Err(format!("Session not found: {}", session_id));
+    }
+
+    info!("Session {} not in memory, attempting auto-resume for get_state...", session_id);
+
+    // Check if session exists on disk
+    let session_info = state.session_registry.get_session_info(session_id)
+        .ok_or_else(|| format!("Session not found on disk: {}", session_id))?;
+
+    let cwd = session_info.cwd.clone();
+
+    // Resume the session via ACP agent
+    let manager = AgentManager::new(state.client.clone());
+    let response = manager.resume_session(session_id, &cwd).await
+        .map_err(|e| format!("Failed to resume session: {}", e))?;
+
+    info!("Auto-resumed session for get_state: {} -> {}", session_id, response.session_id);
+
+    // Register in session registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd.clone(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Load historical chat items from JSONL file
+    let chat_items = state.session_registry.load_chat_items(session_id);
+    info!("Loaded {} historical chat items for session {}", chat_items.len(), session_id);
+
+    // Create session state with historical chat items
+    state.session_state_manager.create_session_with_history(
+        response.session_id.clone(),
+        cwd,
+        response.modes,
+        response.models,
+        chat_items,
+    );
+
+    // Set as current active session
+    state.set_current_session(Some(response.session_id.clone())).await;
+
+    // Return the new session state
+    state.session_state_manager.get_state(&response.session_id)
+        .ok_or_else(|| format!("Failed to get state for resumed session: {}", response.session_id))
+}
+
 async fn connect_handler(state: &Arc<AppState>) -> Result<(), String> {
     info!("WebSocket: Connecting to ACP agent...");
     let manager = AgentManager::new(state.client.clone());
@@ -470,14 +824,143 @@ async fn create_session_handler(state: &Arc<AppState>, cwd: &str) -> Result<NewS
     info!("WebSocket: Creating new session in {}", cwd);
     let manager = AgentManager::new(state.client.clone());
     let response = manager.create_session(cwd).await.map_err(|e: AcpError| e.to_string())?;
+
+    // Register session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Create session state in SessionStateManager (single source of truth)
+    state.session_state_manager.create_session(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Set as current active session and broadcast to all clients
+    state.set_current_session(Some(response.session_id.clone())).await;
+
     info!("WebSocket: Created session: {}", response.session_id);
     Ok(response)
 }
 
-async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &str) -> Result<PromptResponse, String> {
+async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &str, message_id: Option<String>, event_tx: &broadcast::Sender<String>) -> Result<PromptResponse, String> {
     info!("WebSocket: Sending prompt to session {}", session_id);
+
+    // Add user message to SessionStateManager (single source of truth)
+    // If message_id is provided (from frontend optimistic update), use it to avoid duplicates
+    state.session_state_manager.add_user_message(&session_id.to_string(), content.to_string(), message_id.clone());
+
+    // Broadcast user message to all WebSocket clients
+    if let Some(session_state) = state.session_state_manager.get_state(&session_id.to_string()) {
+        // Get the last chat item which should be the user message we just added
+        if let Some(last_item) = session_state.chat_items.last() {
+            let msg = JsonRpcNotification {
+                jsonrpc: "2.0".to_string(),
+                method: "session/state_update".to_string(),
+                params: serde_json::json!({
+                    "sessionId": session_id,
+                    "update": {
+                        "updateType": "message_added",
+                        "message": match last_item {
+                            crate::core::session_state::ChatItem::Message { message } => serde_json::to_value(message).ok(),
+                            _ => None,
+                        }
+                    }
+                }),
+            };
+            if let Ok(json) = serde_json::to_string(&msg) {
+                let _ = event_tx.send(json);
+            }
+        }
+    }
+
     let manager = AgentManager::new(state.client.clone());
-    let response = manager.prompt(session_id, content).await.map_err(|e: AcpError| e.to_string())?;
+
+    // Try to send prompt, auto-resume if session not found in ACP agent
+    let response = match manager.prompt(session_id, content).await {
+        Ok(resp) => resp,
+        Err(e) => {
+            let error_msg = e.to_string();
+            // Check if error is "Session not found" - need to resume
+            if error_msg.contains("Session not found") || error_msg.contains("session not found") {
+                warn!("WebSocket: Session {} not found in ACP agent, attempting auto-resume...", session_id);
+
+                // Get session info to find cwd
+                let session_info = state.session_registry.get_session_info(session_id)
+                    .ok_or_else(|| format!("Session {} not found in registry", session_id))?;
+
+                let cwd = session_info.cwd;
+
+                // Resume the session
+                let resume_response = manager.resume_session(session_id, &cwd).await
+                    .map_err(|e| format!("Failed to auto-resume session: {}", e))?;
+
+                info!("WebSocket: Auto-resumed session {} -> {}", session_id, resume_response.session_id);
+
+                // Update registry and state manager with potentially new session ID
+                state.session_registry.register_session(
+                    resume_response.session_id.clone(),
+                    cwd.clone(),
+                    resume_response.modes.clone(),
+                    resume_response.models.clone(),
+                );
+
+                // Load historical chat items from JSONL file
+                let history_items = state.session_registry.load_chat_items(session_id);
+                info!("Loaded {} historical chat items for auto-resumed session {}", history_items.len(), session_id);
+
+                // Create/update session state with historical chat items
+                state.session_state_manager.create_session_with_history(
+                    resume_response.session_id.clone(),
+                    cwd,
+                    resume_response.modes,
+                    resume_response.models,
+                    history_items,
+                );
+
+                // Re-add the user message to the new session state
+                state.session_state_manager.add_user_message(&resume_response.session_id, content.to_string(), message_id.clone());
+
+                // Broadcast user message to all WebSocket clients
+                if let Some(session_state) = state.session_state_manager.get_state(&resume_response.session_id) {
+                    if let Some(last_item) = session_state.chat_items.last() {
+                        let msg = JsonRpcNotification {
+                            jsonrpc: "2.0".to_string(),
+                            method: "session/state_update".to_string(),
+                            params: serde_json::json!({
+                                "sessionId": resume_response.session_id,
+                                "update": {
+                                    "updateType": "message_added",
+                                    "message": match last_item {
+                                        crate::core::session_state::ChatItem::Message { message } => serde_json::to_value(message).ok(),
+                                        _ => None,
+                                    }
+                                }
+                            }),
+                        };
+                        if let Ok(json) = serde_json::to_string(&msg) {
+                            let _ = event_tx.send(json);
+                        }
+                    }
+                }
+
+                // Set as current session
+                state.set_current_session(Some(resume_response.session_id.clone())).await;
+
+                // Retry the prompt with the resumed session
+                manager.prompt(&resume_response.session_id, content).await
+                    .map_err(|e| format!("Failed to send prompt after resume: {}", e))?
+            } else {
+                return Err(error_msg);
+            }
+        }
+    };
+
     info!("WebSocket: Prompt completed with stop_reason: {:?}", response.stop_reason);
     Ok(response)
 }
@@ -492,6 +975,94 @@ async fn set_session_mode_handler(state: &Arc<AppState>, session_id: &str, mode_
     info!("WebSocket: Setting session {} mode to {}", session_id, mode_id);
     let manager = AgentManager::new(state.client.clone());
     manager.set_session_mode(session_id, mode_id).await.map_err(|e: AcpError| e.to_string())
+}
+
+use crate::core::{ListSessionsResponse, SessionInfo};
+
+async fn list_sessions_handler(
+    state: &Arc<AppState>,
+    cwd: Option<&str>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> ListSessionsResponse {
+    let limit = limit.unwrap_or(20);
+    let offset = offset.unwrap_or(0);
+    info!("WebSocket: Listing sessions (cwd={:?}, limit={}, offset={})", cwd, limit, offset);
+    let response = state.session_registry.list_sessions(cwd, limit, offset);
+    info!("WebSocket: Found {} sessions (total: {})", response.sessions.len(), response.total);
+    response
+}
+
+async fn resume_session_handler(state: &Arc<AppState>, session_id: &str, cwd: &str) -> Result<NewSessionResponse, String> {
+    info!("WebSocket: Resuming session {} in {}", session_id, cwd);
+    let manager = AgentManager::new(state.client.clone());
+    let response = manager.resume_session(session_id, cwd).await.map_err(|e: AcpError| e.to_string())?;
+
+    // Register session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Load historical chat items from JSONL file
+    let chat_items = state.session_registry.load_chat_items(session_id);
+    info!("Loaded {} historical chat items for session {}", chat_items.len(), session_id);
+
+    // Create session state with historical chat items
+    state.session_state_manager.create_session_with_history(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+        chat_items,
+    );
+
+    // Set as current active session and broadcast to all clients
+    state.set_current_session(Some(response.session_id.clone())).await;
+
+    info!("WebSocket: Resumed session: {}", response.session_id);
+    Ok(response)
+}
+
+async fn fork_session_handler(state: &Arc<AppState>, session_id: &str, cwd: &str) -> Result<NewSessionResponse, String> {
+    info!("WebSocket: Forking session {} in {}", session_id, cwd);
+    let manager = AgentManager::new(state.client.clone());
+    let response = manager.fork_session(session_id, cwd).await.map_err(|e: AcpError| e.to_string())?;
+
+    // Register new session in the registry
+    state.session_registry.register_session(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+    );
+
+    // Load historical chat items from JSONL file
+    let chat_items = state.session_registry.load_chat_items(session_id);
+    info!("Loaded {} historical chat items for forked session {}", chat_items.len(), session_id);
+
+    // Create session state with historical chat items
+    state.session_state_manager.create_session_with_history(
+        response.session_id.clone(),
+        cwd.to_string(),
+        response.modes.clone(),
+        response.models.clone(),
+        chat_items,
+    );
+
+    // Set as current active session and broadcast to all clients
+    state.set_current_session(Some(response.session_id.clone())).await;
+
+    info!("WebSocket: Forked session {} -> {}", session_id, response.session_id);
+    Ok(response)
+}
+
+async fn get_session_info_handler(state: &Arc<AppState>, session_id: &str) -> Result<SessionInfo, String> {
+    info!("WebSocket: Getting session info: {}", session_id);
+    state.session_registry.get_session_info(session_id)
+        .ok_or_else(|| format!("Session not found: {}", session_id))
 }
 
 // File handlers

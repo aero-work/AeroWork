@@ -109,11 +109,13 @@ export const useFileStore = create<FileState & FileActions>()(
               MAX_RECENT_PROJECTS
             );
           }
-          state.currentWorkingDir = path;
-          // Reset file tree
-          state.fileTree = [];
-          state.expandedPaths = new Set();
-          state.selectedPath = null;
+          // Only reset file tree if changing to a different directory
+          if (state.currentWorkingDir !== path) {
+            state.currentWorkingDir = path;
+            state.fileTree = [];
+            state.expandedPaths = new Set();
+            state.selectedPath = null;
+          }
         });
       },
 

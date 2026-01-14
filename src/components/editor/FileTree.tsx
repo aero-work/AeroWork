@@ -1,7 +1,8 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import * as fileService from "@/services/fileService";
 import { useFileStore, type FileEntry, type FileTreeNode } from "@/stores/fileStore";
+import { useAgentStore } from "@/stores/agentStore";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -324,12 +325,18 @@ export function FileTree() {
   const openFile = useFileStore((state) => state.openFile);
   const closeFile = useFileStore((state) => state.closeFile);
 
+  const connectionStatus = useAgentStore((state) => state.connectionStatus);
+  const isConnected = connectionStatus === "connected";
+
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [newItem, setNewItem] = useState<{
     parentPath: string;
     type: "file" | "folder";
     depth: number;
   } | null>(null);
+
+  // Track if we've loaded since connection
+  const hasLoadedRef = useRef(false);
 
   // Load directory contents
   const loadDirectory = useCallback(
@@ -355,16 +362,24 @@ export function FileTree() {
     [showHiddenFiles, updateDirectoryChildren, setDirectoryLoading]
   );
 
-  // Load root directory when working dir changes
+  // Load root directory when connected and working dir is set
   useEffect(() => {
-    if (currentWorkingDir) {
-      loadDirectory(currentWorkingDir);
+    if (isConnected && currentWorkingDir) {
+      // Load if tree is empty or if we haven't loaded since connecting
+      if (fileTree.length === 0 || !hasLoadedRef.current) {
+        hasLoadedRef.current = true;
+        loadDirectory(currentWorkingDir);
+      }
     }
-  }, [currentWorkingDir, loadDirectory]);
+    // Reset the flag when disconnected
+    if (!isConnected) {
+      hasLoadedRef.current = false;
+    }
+  }, [isConnected, currentWorkingDir, fileTree.length, loadDirectory]);
 
   // Reload when hidden files toggle changes
   useEffect(() => {
-    if (currentWorkingDir) {
+    if (isConnected && currentWorkingDir) {
       loadDirectory(currentWorkingDir);
       // Also reload expanded directories
       expandedPaths.forEach((path) => {
@@ -535,6 +550,13 @@ export function FileTree() {
   }
 
   if (fileTree.length === 0) {
+    if (!isConnected) {
+      return (
+        <div className="p-4 text-sm text-muted-foreground text-center">
+          Connect to browse files
+        </div>
+      );
+    }
     return (
       <div className="p-4 text-sm text-muted-foreground text-center">
         <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />

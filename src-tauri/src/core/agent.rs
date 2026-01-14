@@ -24,7 +24,7 @@ impl AgentManager {
         let mut client = AcpClient::new(notification_tx, permission_tx);
 
         client
-            .connect("npx", &["@zed-industries/claude-code-acp"])
+            .connect("claude-code-acp", &[])
             .await?;
 
         {
@@ -64,6 +64,28 @@ impl AgentManager {
         let guard = self.client.read().await;
         let client = guard.as_ref().ok_or(AcpError::NotConnected)?;
         client.create_session(cwd).await
+    }
+
+    /// Resume an existing session
+    pub async fn resume_session(
+        &self,
+        session_id: &str,
+        cwd: &str,
+    ) -> Result<NewSessionResponse, AcpError> {
+        let guard = self.client.read().await;
+        let client = guard.as_ref().ok_or(AcpError::NotConnected)?;
+        client.resume_session(session_id, cwd).await
+    }
+
+    /// Fork an existing session
+    pub async fn fork_session(
+        &self,
+        session_id: &str,
+        cwd: &str,
+    ) -> Result<NewSessionResponse, AcpError> {
+        let guard = self.client.read().await;
+        let client = guard.as_ref().ok_or(AcpError::NotConnected)?;
+        client.fork_session(session_id, cwd).await
     }
 
     pub async fn prompt(&self, session_id: &str, content: &str) -> Result<PromptResponse, AcpError> {

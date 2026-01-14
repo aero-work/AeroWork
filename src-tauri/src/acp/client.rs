@@ -195,10 +195,16 @@ impl AcpClient {
                         match notification.method.as_str() {
                             "session/update" => {
                                 if let Some(params) = notification.params {
-                                    if let Ok(session_notification) =
-                                        serde_json::from_value::<SessionNotification>(params)
-                                    {
-                                        let _ = notification_tx.send(session_notification).await;
+                                    match serde_json::from_value::<SessionNotification>(params.clone()) {
+                                        Ok(session_notification) => {
+                                            debug!("Parsed session notification for session: {}", session_notification.session_id);
+                                            if let Err(e) = notification_tx.send(session_notification).await {
+                                                error!("Failed to send notification through channel: {}", e);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to parse session notification: {} - params: {:?}", e, params);
+                                        }
                                     }
                                 }
                             }
@@ -325,6 +331,37 @@ impl AcpClient {
         };
 
         self.send_request("session/new", Some(serde_json::to_value(params)?))
+            .await
+    }
+
+    /// Resume an existing session (unstable API)
+    ///
+    /// This reattaches to an existing session without replaying history.
+    /// The session must exist in ~/.claude/projects/{path_key}/{session_id}.jsonl
+    pub async fn resume_session(&self, session_id: &str, cwd: &str) -> Result<NewSessionResponse> {
+        let params = ResumeSessionRequest {
+            session_id: session_id.to_string(),
+            cwd: cwd.to_string(),
+            mcp_servers: vec![],
+        };
+
+        info!("Resuming session {} in {}", session_id, cwd);
+        self.send_request("session/resume", Some(serde_json::to_value(params)?))
+            .await
+    }
+
+    /// Fork an existing session (unstable API)
+    ///
+    /// This creates a new session based on an existing one with a new ID.
+    pub async fn fork_session(&self, session_id: &str, cwd: &str) -> Result<NewSessionResponse> {
+        let params = ForkSessionRequest {
+            session_id: session_id.to_string(),
+            cwd: cwd.to_string(),
+            mcp_servers: vec![],
+        };
+
+        info!("Forking session {} in {}", session_id, cwd);
+        self.send_request("session/fork", Some(serde_json::to_value(params)?))
             .await
     }
 

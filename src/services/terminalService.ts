@@ -1,7 +1,8 @@
 /**
- * Terminal service that works in both Tauri and WebSocket modes
+ * Terminal service - uses WebSocket for all operations
  */
-import { getTransportType } from "./transport";
+import { getTransport } from "./transport";
+import { WebSocketTransport } from "./transport/websocket";
 
 export interface TerminalInfo {
   id: string;
@@ -9,42 +10,13 @@ export interface TerminalInfo {
 }
 
 export interface TerminalOutput {
-  terminal_id: string;
+  terminalId: string;
   data: string;
 }
 
-// Dynamic import for Tauri API (only available in Tauri mode)
-let tauriInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
-let tauriListen: ((event: string, handler: (e: { payload: unknown }) => void) => Promise<() => void>) | null = null;
-
-async function getTauriApi() {
-  if (tauriInvoke && tauriListen) {
-    return { invoke: tauriInvoke, listen: tauriListen };
-  }
-
-  if (getTransportType() === "tauri") {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const { listen } = await import("@tauri-apps/api/event");
-    tauriInvoke = invoke;
-    tauriListen = listen;
-    return { invoke, listen };
-  }
-
-  return null;
-}
-
-// WebSocket-based implementation
-async function wsRequest<T>(method: string, params: Record<string, unknown>): Promise<T> {
-  const { getTransport } = await import("./transport");
+function getWsTransport(): WebSocketTransport {
   const transport = getTransport();
-
-  const ws = transport as { send?: <R>(method: string, params?: unknown) => Promise<R> };
-
-  if (ws.send) {
-    return ws.send<T>(method, params);
-  }
-
-  throw new Error("WebSocket transport not available");
+  return transport as WebSocketTransport;
 }
 
 export async function createTerminal(
@@ -52,32 +24,11 @@ export async function createTerminal(
   cols: number,
   rows: number
 ): Promise<string> {
-  const transportType = getTransportType();
-
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api) {
-      return api.invoke("create_terminal", { workingDir, cols, rows }) as Promise<string>;
-    }
-  }
-
-  // WebSocket mode
-  return wsRequest<string>("create_terminal", { cwd: workingDir, cols, rows });
+  return getWsTransport().send<string>("create_terminal", { cwd: workingDir, cols, rows });
 }
 
 export async function writeTerminal(terminalId: string, data: string): Promise<void> {
-  const transportType = getTransportType();
-
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api) {
-      await api.invoke("write_terminal", { terminalId, data });
-      return;
-    }
-  }
-
-  // WebSocket mode
-  await wsRequest<void>("write_terminal", { terminalId, data });
+  await getWsTransport().send<void>("write_terminal", { terminalId, data });
 }
 
 export async function resizeTerminal(
@@ -85,47 +36,15 @@ export async function resizeTerminal(
   cols: number,
   rows: number
 ): Promise<void> {
-  const transportType = getTransportType();
-
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api) {
-      await api.invoke("resize_terminal", { terminalId, cols, rows });
-      return;
-    }
-  }
-
-  // WebSocket mode
-  await wsRequest<void>("resize_terminal", { terminalId, cols, rows });
+  await getWsTransport().send<void>("resize_terminal", { terminalId, cols, rows });
 }
 
 export async function killTerminal(terminalId: string): Promise<void> {
-  const transportType = getTransportType();
-
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api) {
-      await api.invoke("kill_terminal", { terminalId });
-      return;
-    }
-  }
-
-  // WebSocket mode
-  await wsRequest<void>("kill_terminal", { terminalId });
+  await getWsTransport().send<void>("kill_terminal", { terminalId });
 }
 
 export async function listTerminals(): Promise<TerminalInfo[]> {
-  const transportType = getTransportType();
-
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api) {
-      return api.invoke("list_terminals") as Promise<TerminalInfo[]>;
-    }
-  }
-
-  // WebSocket mode
-  return wsRequest<TerminalInfo[]>("list_terminals", {});
+  return getWsTransport().send<TerminalInfo[]>("list_terminals", {});
 }
 
 // Terminal output event listener
@@ -133,40 +52,15 @@ const outputCallbacks = new Map<string, (data: string) => void>();
 let unlistenFn: (() => void) | null = null;
 
 export async function setupTerminalOutputListener(): Promise<void> {
-  const transportType = getTransportType();
+  const ws = getWsTransport();
 
-  if (transportType === "tauri") {
-    const api = await getTauriApi();
-    if (api && !unlistenFn) {
-      unlistenFn = await api.listen("terminal:output", (event) => {
-        const output = event.payload as TerminalOutput;
-        const callback = outputCallbacks.get(output.terminal_id);
-        if (callback) {
-          callback(output.data);
-        }
-      });
-    }
-  } else {
-    // WebSocket mode - use transport's terminal output subscription
-    const { getTransport } = await import("./transport");
-    const transport = getTransport();
-    const ws = transport as {
-      onTerminalOutput?: (handler: (output: TerminalOutput) => void) => () => void;
-    };
-
-    if (ws.onTerminalOutput && !unlistenFn) {
-      unlistenFn = ws.onTerminalOutput((output) => {
-        // Handle both snake_case (from server) and camelCase property names
-        const terminalId = (output as { terminalId?: string; terminal_id?: string }).terminalId
-          || (output as { terminal_id?: string }).terminal_id;
-        if (terminalId) {
-          const callback = outputCallbacks.get(terminalId);
-          if (callback) {
-            callback(output.data);
-          }
-        }
-      });
-    }
+  if (!unlistenFn) {
+    unlistenFn = ws.onTerminalOutput((output) => {
+      const callback = outputCallbacks.get(output.terminalId);
+      if (callback) {
+        callback(output.data);
+      }
+    });
   }
 }
 

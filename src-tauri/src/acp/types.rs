@@ -150,6 +150,24 @@ pub struct NewSessionResponse {
     pub models: Option<SessionModelState>,
 }
 
+/// Request to resume an existing session (unstable API)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResumeSessionRequest {
+    pub session_id: SessionId,
+    pub cwd: String,
+    pub mcp_servers: Vec<serde_json::Value>,
+}
+
+/// Request to fork an existing session (unstable API)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForkSessionRequest {
+    pub session_id: SessionId,
+    pub cwd: String,
+    pub mcp_servers: Vec<serde_json::Value>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptRequest {
@@ -369,7 +387,9 @@ pub enum SessionUpdate {
     ToolCall(ToolCall),
     ToolCallUpdate(ToolCallUpdate),
     Plan(Plan),
+    #[serde(rename_all = "camelCase")]
     AvailableCommandsUpdate { available_commands: Vec<AvailableCommand> },
+    #[serde(rename_all = "camelCase")]
     CurrentModeUpdate { current_mode_id: SessionModeId },
 }
 

@@ -24,6 +24,10 @@ aero-code/
 │   │   │   ├── mod.rs
 │   │   │   ├── agent.rs          # AgentManager (spawn, message handling)
 │   │   │   ├── state.rs          # AppState (shared state)
+│   │   │   ├── config.rs         # ConfigManager (XDG config persistence)
+│   │   │   ├── session_registry.rs    # SessionRegistry (session file scanning, history loading)
+│   │   │   ├── session_state.rs       # SessionState (chat items, tool calls storage)
+│   │   │   ├── session_state_manager.rs # SessionStateManager (state sync, subscriptions)
 │   │   │   └── terminal.rs       # TerminalManager (PTY management)
 │   │   └── commands/             # Tauri IPC commands
 │   │       ├── mod.rs
@@ -60,6 +64,13 @@ aero-code/
 │   │   ├── common/               # Shared UI components
 │   │   │   ├── PermissionDialog.tsx  # Permission request modal
 │   │   │   └── ProjectSelector.tsx   # Project/directory picker
+│   │   ├── settings/             # Settings components
+│   │   │   ├── index.ts          # Barrel export
+│   │   │   ├── SettingsDialog.tsx    # Main settings dialog with tabs
+│   │   │   ├── GeneralSettings.tsx   # General app preferences
+│   │   │   ├── ModelSettings.tsx     # AI model configuration
+│   │   │   ├── MCPSettings.tsx       # MCP server management
+│   │   │   └── PermissionSettings.tsx # Tool permission rules
 │   │   └── ui/                   # shadcn/ui components
 │   │       ├── button.tsx
 │   │       ├── dialog.tsx
@@ -71,7 +82,8 @@ aero-code/
 │   │   ├── sessionStore.ts       # Sessions, messages, tool calls
 │   │   ├── agentStore.ts         # Agent connections, agent info
 │   │   ├── fileStore.ts          # Working directory, recent projects
-│   │   └── terminalStore.ts      # Terminal instances and state
+│   │   ├── terminalStore.ts      # Terminal instances and state
+│   │   └── settingsStore.ts      # Settings, MCP servers, models, permissions
 │   ├── services/                 # Backend communication layer
 │   │   ├── transport/
 │   │   │   ├── index.ts          # Transport factory (auto-detect mode)
@@ -238,7 +250,7 @@ Agent Process (stdio)
 | `sessionStore` | Sessions, messages, tool calls, plan, streaming state |
 | `agentStore` | Agent configurations, active agent, connection status |
 | `fileStore` | Working directory, file tree, open files |
-| `permissionStore` | Permission rules, pending requests, history |
+| `settingsStore` | MCP servers, models, permission rules, UI preferences |
 
 ## Key Interfaces
 

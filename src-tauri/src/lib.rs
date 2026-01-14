@@ -5,13 +5,15 @@ pub mod core;
 pub mod server;
 
 use std::sync::Arc;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::{
     cancel_session, connect_agent, create_directory, create_file, create_session, delete_path,
     disconnect_agent, initialize_agent, list_directory, read_file, rename_path, respond_permission,
     send_prompt, set_session_mode, write_file,
+    // Session management commands
+    resume_session, fork_session, list_sessions, get_session_info,
     // Terminal commands
     create_terminal, write_terminal, resize_terminal, kill_terminal, list_terminals,
 };
@@ -42,6 +44,11 @@ pub fn run() {
             cancel_session,
             set_session_mode,
             respond_permission,
+            // Session management
+            resume_session,
+            fork_session,
+            list_sessions,
+            get_session_info,
             // File operations
             list_directory,
             read_file,
@@ -58,21 +65,9 @@ pub fn run() {
             list_terminals,
         ])
         .setup(|app| {
-            // Set up terminal output event emitter
-            let state = app.state::<Arc<AppState>>();
-            let terminal_output_rx = state.terminal_output_rx.clone();
-            let handle = app.handle().clone();
-
-            tauri::async_runtime::spawn(async move {
-                let rx = terminal_output_rx.write().take();
-                if let Some(mut rx) = rx {
-                    while let Some(output) = rx.recv().await {
-                        let _ = handle.emit("terminal:output", output);
-                    }
-                }
-            });
-
             // Start WebSocket server if enabled
+            // Note: WebSocket server handles all event forwarding (session updates, permissions, terminal output)
+            // This makes the architecture simpler - both desktop and web clients use WebSocket
             #[cfg(feature = "websocket")]
             {
                 let ws_state = app.state::<Arc<AppState>>().inner().clone();

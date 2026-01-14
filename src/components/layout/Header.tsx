@@ -1,13 +1,16 @@
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useAgentStore, type ConnectionStatus } from "@/stores/agentStore";
+import { useFileStore } from "@/stores/fileStore";
 import { agentAPI } from "@/services/api";
+import { ProjectSelector } from "@/components/common/ProjectSelector";
 import {
   Plug,
   PlugZap,
   Loader2,
   AlertCircle,
   Bot,
+  FolderOpen,
 } from "lucide-react";
 
 const statusConfig: Record<
@@ -22,6 +25,8 @@ const statusConfig: Record<
 
 export function Header() {
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
+  const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
+  const addRecentProject = useFileStore((state) => state.addRecentProject);
 
   const { icon: StatusIcon, label, className } = statusConfig[connectionStatus];
   const isConnected = connectionStatus === "connected";
@@ -48,6 +53,24 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Project Selector */}
+        <ProjectSelector
+          onSelect={addRecentProject}
+          trigger={
+            <Button variant="outline" size="sm" className="gap-2">
+              <FolderOpen className="w-4 h-4" />
+              {currentWorkingDir ? (
+                <span className="max-w-40 truncate">
+                  {currentWorkingDir.split("/").pop()}
+                </span>
+              ) : (
+                "Open Project"
+              )}
+            </Button>
+          }
+        />
+
+        {/* Connect Button */}
         <Button
           variant={isConnected ? "outline" : "default"}
           size="sm"

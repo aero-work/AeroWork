@@ -264,11 +264,14 @@ interface FileStore {
   openFile: (path: string) => Promise<void>;
 }
 
-// Permission Store - manages permission requests
-interface PermissionStore {
-  pendingRequests: PermissionRequest[];
-  rules: PermissionRule[];
-  respond: (requestId: string, response: PermissionResponse) => void;
+// Settings Store - manages app settings with persistence
+interface SettingsStore {
+  mcpServers: MCPServer[];
+  models: ModelConfig[];
+  permissionRules: PermissionRule[];
+  generalSettings: GeneralSettings;
+  addMCPServer: (server: MCPServer) => void;
+  addPermissionRule: (rule: PermissionRule) => void;
 }
 ```
 

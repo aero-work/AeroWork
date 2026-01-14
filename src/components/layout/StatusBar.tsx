@@ -2,14 +2,15 @@ import { useAgentStore } from "@/stores/agentStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useTerminalStore } from "@/stores/terminalStore";
+import { getWebSocketEndpoint } from "@/services/transport";
 import { cn } from "@/lib/utils";
-import { Circle, FolderOpen, MessageSquare, Terminal } from "lucide-react";
+import { Circle, FolderOpen, MessageSquare, Terminal, Server, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function StatusBar() {
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const agentInfo = useAgentStore((state) => state.agentInfo);
-  const sessions = useSessionStore((state) => state.sessions);
+  const availableSessions = useSessionStore((state) => state.availableSessions);
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const isLoading = useSessionStore((state) => state.isLoading);
   const terminals = useTerminalStore((state) => state.terminals);
@@ -18,8 +19,13 @@ export function StatusBar() {
   const createTerminal = useTerminalStore((state) => state.createTerminal);
   const setTerminalPanelOpen = useTerminalStore((state) => state.setTerminalPanelOpen);
 
-  const sessionCount = Object.keys(sessions).length;
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const sessionCount = availableSessions.filter((s) => s.active).length;
   const isConnected = connectionStatus === "connected";
+  const endpointUrl = getWebSocketEndpoint();
+
+  // Truncate session ID for display (show first 8 chars)
+  const shortSessionId = activeSessionId ? activeSessionId.substring(0, 8) : null;
 
   const handleTerminalClick = async () => {
     if (terminals.length === 0) {
@@ -51,6 +57,33 @@ export function StatusBar() {
               : "Disconnected"}
           </span>
         </div>
+
+        {/* Backend Endpoint */}
+        {endpointUrl && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Server className="w-3 h-3" />
+            <span className="max-w-48 truncate" title={endpointUrl}>
+              {endpointUrl.replace(/^wss?:\/\//, "")}
+            </span>
+          </div>
+        )}
+
+        {/* Active Session ID */}
+        {shortSessionId && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Hash className="w-3 h-3" />
+            <span
+              className="font-mono cursor-pointer hover:text-foreground"
+              title={`Session: ${activeSessionId}`}
+              onClick={() => {
+                navigator.clipboard.writeText(activeSessionId || "");
+                console.log("Copied session ID:", activeSessionId);
+              }}
+            >
+              {shortSessionId}
+            </span>
+          </div>
+        )}
 
         {/* Working Directory */}
         {currentWorkingDir && (

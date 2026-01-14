@@ -5,6 +5,7 @@ import { ChatView } from "@/components/chat";
 import { EditorPanel } from "@/components/editor";
 import { TerminalPanel } from "@/components/terminal";
 import { PermissionDialog } from "@/components/common/PermissionDialog";
+import { SettingsDialog } from "@/components/settings";
 import { useFileStore } from "@/stores/fileStore";
 import { useTerminalStore } from "@/stores/terminalStore";
 import {
@@ -87,6 +88,7 @@ export function MainLayout() {
       </main>
       <StatusBar />
       <PermissionDialog />
+      <SettingsDialog />
     </div>
   );
 }
