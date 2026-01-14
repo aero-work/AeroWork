@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
-use crate::acp::{SessionId, SessionModeState, SessionModelState};
+use crate::acp::{SessionId, SessionModeState, SessionModelState, ToolCall, ToolCallStatus, ToolCallContent, ContentBlock};
 use super::session_state::{ChatItem, Message, MessageRole};
 
 /// Information about a session (both active and historical)
@@ -397,8 +397,8 @@ fn truncate_string(s: &str, max_chars: usize) -> String {
 const MAX_HISTORY_ITEMS: usize = 200;
 
 /// Load chat items from a session file
-/// Returns a vector of ChatItem (messages only, tool calls are skipped for now)
-/// Limits to the most recent MAX_HISTORY_ITEMS messages for performance
+/// Returns a vector of ChatItem (messages and tool calls)
+/// Limits to the most recent MAX_HISTORY_ITEMS items for performance
 pub fn load_session_chat_items(path: &PathBuf) -> Vec<ChatItem> {
     use std::io::{BufRead, BufReader};
     use std::fs::File;
@@ -413,6 +413,8 @@ pub fn load_session_chat_items(path: &PathBuf) -> Vec<ChatItem> {
 
     let reader = BufReader::new(file);
     let mut chat_items: Vec<ChatItem> = Vec::new();
+    // Track pending tool calls (tool_use_id -> ToolCall) to update with results later
+    let mut pending_tool_calls: HashMap<String, ToolCall> = HashMap::new();
 
     for line in reader.lines() {
         let line = match line {
@@ -439,9 +441,202 @@ pub fn load_session_chat_items(path: &PathBuf) -> Vec<ChatItem> {
             continue;
         }
 
+        // Get timestamp from entry
+        let timestamp = entry
+            .get("timestamp")
+            .and_then(|v| v.as_str())
+            .and_then(|ts| DateTime::parse_from_rfc3339(ts).ok())
+            .map(|dt| dt.timestamp_millis())
+            .unwrap_or_else(|| Utc::now().timestamp_millis());
+
         // Process message entries
         if let Some(msg) = entry.get("message") {
             let role_str = msg.get("role").and_then(|v| v.as_str());
+
+            // Check for tool_use in assistant message content
+            if role_str == Some("assistant") {
+                if let Some(content_arr) = msg.get("content").and_then(|v| v.as_array()) {
+                    // Track pending text to flush when we encounter a tool_use
+                    let mut pending_text = String::new();
+                    let mut text_counter = 0;
+
+                    // Helper closure to flush pending text as a message
+                    let base_id = entry
+                        .get("uuid")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+                    for content_item in content_arr {
+                        let content_type = content_item.get("type").and_then(|v| v.as_str());
+
+                        match content_type {
+                            Some("text") => {
+                                if let Some(text) = content_item.get("text").and_then(|v| v.as_str()) {
+                                    if !text.is_empty() && !is_system_message(text) {
+                                        if !pending_text.is_empty() {
+                                            pending_text.push_str("\n");
+                                        }
+                                        pending_text.push_str(text);
+                                    }
+                                }
+                            }
+                            Some("tool_use") => {
+                                // Flush any pending text BEFORE adding the tool call
+                                if !pending_text.is_empty() {
+                                    let msg_id = if text_counter == 0 {
+                                        base_id.clone()
+                                    } else {
+                                        format!("{}-text-{}", base_id, text_counter)
+                                    };
+                                    text_counter += 1;
+
+                                    let message = Message {
+                                        id: msg_id,
+                                        role: MessageRole::Assistant,
+                                        content: pending_text.clone(),
+                                        timestamp,
+                                    };
+                                    chat_items.push(ChatItem::Message { message });
+                                    pending_text.clear();
+                                }
+
+                                // Parse tool call
+                                let tool_call_id = content_item.get("id")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let tool_name = content_item.get("name")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("Unknown")
+                                    .to_string();
+                                let input = content_item.get("input").cloned();
+
+                                // Create a descriptive title from tool name
+                                let title = tool_name.clone();
+
+                                let tool_call = ToolCall {
+                                    tool_call_id: tool_call_id.clone(),
+                                    title,
+                                    kind: None,
+                                    status: Some(ToolCallStatus::Completed), // Historical calls are completed
+                                    raw_input: input,
+                                    raw_output: None,
+                                    content: None,
+                                    locations: None,
+                                };
+
+                                // Store for later result matching
+                                pending_tool_calls.insert(tool_call_id.clone(), tool_call.clone());
+                                chat_items.push(ChatItem::ToolCall { tool_call });
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Flush any remaining text after processing all content items
+                    if !pending_text.is_empty() {
+                        let msg_id = if text_counter == 0 {
+                            base_id
+                        } else {
+                            format!("{}-text-{}", base_id, text_counter)
+                        };
+
+                        let message = Message {
+                            id: msg_id,
+                            role: MessageRole::Assistant,
+                            content: pending_text,
+                            timestamp,
+                        };
+                        chat_items.push(ChatItem::Message { message });
+                    }
+                }
+                continue;
+            }
+
+            // Check for tool_result in user message content
+            if role_str == Some("user") {
+                if let Some(content_arr) = msg.get("content").and_then(|v| v.as_array()) {
+                    for content_item in content_arr {
+                        let content_type = content_item.get("type").and_then(|v| v.as_str());
+
+                        if content_type == Some("tool_result") {
+                            let tool_use_id = content_item.get("tool_use_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+
+                            // Get the result content
+                            let result_content = content_item.get("content")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+
+                            // Also check for toolUseResult in the entry for more details
+                            let tool_use_result = entry.get("toolUseResult");
+                            let stdout = tool_use_result
+                                .and_then(|r| r.get("stdout"))
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+                            let stderr = tool_use_result
+                                .and_then(|r| r.get("stderr"))
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+
+                            // Update the pending tool call with output
+                            if let Some(tool_call) = pending_tool_calls.get_mut(tool_use_id) {
+                                // Build output content
+                                let output_text = if let Some(ref s) = stdout {
+                                    if let Some(ref e) = stderr {
+                                        if e.is_empty() {
+                                            s.clone()
+                                        } else {
+                                            format!("{}\n{}", s, e)
+                                        }
+                                    } else {
+                                        s.clone()
+                                    }
+                                } else {
+                                    result_content.unwrap_or_default()
+                                };
+
+                                // Set raw_output
+                                tool_call.raw_output = Some(serde_json::json!(output_text));
+
+                                // Set content
+                                tool_call.content = Some(vec![
+                                    ToolCallContent::Content {
+                                        content: ContentBlock::Text { text: output_text }
+                                    }
+                                ]);
+
+                                // Update the tool call in chat_items
+                                for item in chat_items.iter_mut() {
+                                    if let ChatItem::ToolCall { tool_call: tc } = item {
+                                        if tc.tool_call_id == tool_use_id {
+                                            *tc = tool_call.clone();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check if this is a regular user message (not just tool_result)
+                let has_tool_result = msg.get("content")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().any(|item|
+                        item.get("type").and_then(|v| v.as_str()) == Some("tool_result")
+                    ))
+                    .unwrap_or(false);
+
+                if has_tool_result {
+                    // Skip adding as message, it's just tool result
+                    continue;
+                }
+            }
+
+            // Process regular text messages
             let content = extract_text_content(msg.get("content"));
 
             if let (Some(role_str), Some(text)) = (role_str, content) {
@@ -455,14 +650,6 @@ pub fn load_session_chat_items(path: &PathBuf) -> Vec<ChatItem> {
                     "assistant" => MessageRole::Assistant,
                     _ => continue,
                 };
-
-                // Get timestamp from entry
-                let timestamp = entry
-                    .get("timestamp")
-                    .and_then(|v| v.as_str())
-                    .and_then(|ts| DateTime::parse_from_rfc3339(ts).ok())
-                    .map(|dt| dt.timestamp_millis())
-                    .unwrap_or_else(|| Utc::now().timestamp_millis());
 
                 // Get message ID or generate one
                 let id = entry
@@ -483,7 +670,7 @@ pub fn load_session_chat_items(path: &PathBuf) -> Vec<ChatItem> {
         }
     }
 
-    // Keep only the most recent messages
+    // Keep only the most recent items
     let total = chat_items.len();
     if total > MAX_HISTORY_ITEMS {
         chat_items = chat_items.split_off(total - MAX_HISTORY_ITEMS);

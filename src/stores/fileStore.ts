@@ -89,6 +89,12 @@ export const useFileStore = create<FileState & FileActions>()(
           state.fileTree = [];
           state.expandedPaths = new Set();
           state.selectedPath = null;
+          // Close files that don't belong to the new project
+          state.openFiles = state.openFiles.filter((f) => f.path.startsWith(path));
+          // Reset active file if it was closed
+          if (state.activeFilePath && !state.activeFilePath.startsWith(path)) {
+            state.activeFilePath = state.openFiles.length > 0 ? state.openFiles[0].path : null;
+          }
         });
       },
 
@@ -115,6 +121,12 @@ export const useFileStore = create<FileState & FileActions>()(
             state.fileTree = [];
             state.expandedPaths = new Set();
             state.selectedPath = null;
+            // Close files that don't belong to the new project
+            state.openFiles = state.openFiles.filter((f) => f.path.startsWith(path));
+            // Reset active file if it was closed
+            if (state.activeFilePath && !state.activeFilePath.startsWith(path)) {
+              state.activeFilePath = state.openFiles.length > 0 ? state.openFiles[0].path : null;
+            }
           }
         });
       },

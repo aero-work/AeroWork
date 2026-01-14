@@ -37,6 +37,7 @@ pub struct Message {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatItem {
     Message { message: Message },
+    #[serde(rename_all = "camelCase")]
     ToolCall { tool_call: ToolCall },
 }
 
@@ -166,30 +167,25 @@ impl SessionState {
     }
 
     /// Handle agent message chunk - append to last assistant message or create new one
+    /// Only appends if the LAST item in chat_items is an assistant message
+    /// This preserves ordering: text A -> tool A -> tool B -> text B (not merged)
     fn handle_agent_message_chunk(&mut self, content: &ContentBlock) -> SessionStateUpdate {
         let text = match content {
             ContentBlock::Text { text } => text.clone(),
             _ => return SessionStateUpdate::Noop,
         };
 
-        // Find the last message in chat_items
-        let last_message_idx = self
-            .chat_items
-            .iter()
-            .rposition(|item| matches!(item, ChatItem::Message { .. }));
-
-        if let Some(idx) = last_message_idx {
-            if let ChatItem::Message { message } = &mut self.chat_items[idx] {
-                if message.role == MessageRole::Assistant {
-                    // Append to existing assistant message
-                    message.content.push_str(&text);
-                    message.timestamp = Utc::now().timestamp_millis();
-                    return SessionStateUpdate::MessageChunk { content: text };
-                }
+        // Check if the LAST item is an assistant message - only then append
+        if let Some(ChatItem::Message { message }) = self.chat_items.last_mut() {
+            if message.role == MessageRole::Assistant {
+                // Append to existing assistant message
+                message.content.push_str(&text);
+                message.timestamp = Utc::now().timestamp_millis();
+                return SessionStateUpdate::MessageChunk { content: text };
             }
         }
 
-        // Create new assistant message
+        // Create new assistant message (last item is not an assistant message)
         let message = Message {
             id: Uuid::new_v4().to_string(),
             role: MessageRole::Assistant,
@@ -203,30 +199,24 @@ impl SessionState {
     }
 
     /// Handle user message chunk
+    /// Only appends if the LAST item is a user message
     fn handle_user_message_chunk(&mut self, content: &ContentBlock) -> SessionStateUpdate {
         let text = match content {
             ContentBlock::Text { text } => text.clone(),
             _ => return SessionStateUpdate::Noop,
         };
 
-        // Find the last message in chat_items
-        let last_message_idx = self
-            .chat_items
-            .iter()
-            .rposition(|item| matches!(item, ChatItem::Message { .. }));
-
-        if let Some(idx) = last_message_idx {
-            if let ChatItem::Message { message } = &mut self.chat_items[idx] {
-                if message.role == MessageRole::User {
-                    // Append to existing user message
-                    message.content.push_str(&text);
-                    message.timestamp = Utc::now().timestamp_millis();
-                    return SessionStateUpdate::MessageChunk { content: text };
-                }
+        // Check if the LAST item is a user message - only then append
+        if let Some(ChatItem::Message { message }) = self.chat_items.last_mut() {
+            if message.role == MessageRole::User {
+                // Append to existing user message
+                message.content.push_str(&text);
+                message.timestamp = Utc::now().timestamp_millis();
+                return SessionStateUpdate::MessageChunk { content: text };
             }
         }
 
-        // Create new user message
+        // Create new user message (last item is not a user message)
         let message = Message {
             id: Uuid::new_v4().to_string(),
             role: MessageRole::User,

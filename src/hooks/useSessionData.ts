@@ -69,28 +69,19 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
 
       switch (update.updateType) {
         case "message_chunk": {
-          // Append to last message
+          // Only append if the LAST item is a message (preserve ordering)
           const newChatItems = [...prev.chatItems];
-          let lastMessageIdx = -1;
-          for (let i = newChatItems.length - 1; i >= 0; i--) {
-            if (newChatItems[i].type === "message") {
-              lastMessageIdx = i;
-              break;
-            }
-          }
+          const lastItem = newChatItems[newChatItems.length - 1];
 
-          if (lastMessageIdx >= 0) {
-            const lastItem = newChatItems[lastMessageIdx];
-            if (lastItem.type === "message") {
-              newChatItems[lastMessageIdx] = {
-                type: "message",
-                message: {
-                  ...lastItem.message,
-                  content: lastItem.message.content + update.content,
-                },
-              };
-              return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
-            }
+          if (lastItem && lastItem.type === "message") {
+            newChatItems[newChatItems.length - 1] = {
+              type: "message",
+              message: {
+                ...lastItem.message,
+                content: lastItem.message.content + update.content,
+              },
+            };
+            return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
           }
           return prev;
         }
@@ -175,32 +166,23 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
           const role = update.sessionUpdate === "user_message_chunk" ? "user" : "assistant";
           const text = update.content.text;
 
-          // Find last message
+          // Only append if the LAST item is a message with same role (preserve ordering)
           const newChatItems = [...prev.chatItems];
-          let lastMessageIdx = -1;
-          for (let i = newChatItems.length - 1; i >= 0; i--) {
-            if (newChatItems[i].type === "message") {
-              lastMessageIdx = i;
-              break;
-            }
+          const lastItem = newChatItems[newChatItems.length - 1];
+
+          if (lastItem && lastItem.type === "message" && lastItem.message.role === role) {
+            // Append to existing message
+            newChatItems[newChatItems.length - 1] = {
+              type: "message",
+              message: {
+                ...lastItem.message,
+                content: lastItem.message.content + text,
+              },
+            };
+            return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
           }
 
-          if (lastMessageIdx >= 0) {
-            const lastItem = newChatItems[lastMessageIdx];
-            if (lastItem.type === "message" && lastItem.message.role === role) {
-              // Append to existing message
-              newChatItems[lastMessageIdx] = {
-                type: "message",
-                message: {
-                  ...lastItem.message,
-                  content: lastItem.message.content + text,
-                },
-              };
-              return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
-            }
-          }
-
-          // Create new message
+          // Create new message (last item is not a message with same role)
           const newMessage: Message = {
             id: crypto.randomUUID(),
             role,

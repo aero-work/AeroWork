@@ -23,7 +23,7 @@ pub enum AcpError {
     Process(String),
 
     #[error("RPC error {code}: {message}")]
-    Rpc { code: i32, message: String },
+    Rpc { code: i32, message: String, data: Option<serde_json::Value> },
 
     #[error("Request timeout")]
     Timeout,
@@ -141,6 +141,7 @@ impl AcpClient {
                                     Err(AcpError::Rpc {
                                         code: error.code,
                                         message: error.message,
+                                        data: error.data,
                                     })
                                 } else {
                                     Ok(response.result.unwrap_or(serde_json::Value::Null))

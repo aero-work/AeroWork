@@ -66,7 +66,8 @@ aero-code/
 │   │   │   └── ProjectSelector.tsx   # Project/directory picker
 │   │   ├── settings/             # Settings components
 │   │   │   ├── index.ts          # Barrel export
-│   │   │   ├── SettingsDialog.tsx    # Main settings dialog with tabs
+│   │   │   ├── SettingsPage.tsx      # Main settings page with tabs (shown in chat area)
+│   │   │   ├── AgentSettings.tsx     # Agent connection management
 │   │   │   ├── GeneralSettings.tsx   # General app preferences
 │   │   │   ├── ModelSettings.tsx     # AI model configuration
 │   │   │   ├── MCPSettings.tsx       # MCP server management
@@ -86,11 +87,13 @@ aero-code/
 │   │   └── settingsStore.ts      # Settings, MCP servers, models, permissions
 │   ├── services/                 # Backend communication layer
 │   │   ├── transport/
-│   │   │   ├── index.ts          # Transport factory (auto-detect mode)
-│   │   │   ├── types.ts          # Transport interface
-│   │   │   ├── tauri.ts          # TauriTransport (invoke/listen)
+│   │   │   ├── index.ts          # Transport factory + TauriTransport + context
+│   │   │   ├── types.ts          # Transport interface definitions
 │   │   │   └── websocket.ts      # WebSocketTransport (JSON-RPC over WS)
 │   │   └── api.ts                # AgentAPI class (high-level wrapper)
+│   ├── hooks/                    # Custom React hooks
+│   │   ├── useAutoConnect.ts     # Auto-connect to backend on mount
+│   │   └── useZoom.ts            # Cmd+/- zoom functionality
 │   ├── types/
 │   │   └── acp.ts                # ACP protocol types (must match Rust)
 │   ├── lib/
