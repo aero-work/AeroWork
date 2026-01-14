@@ -41,7 +41,7 @@ export interface PermissionRule {
 /**
  * Settings panel type
  */
-export type SettingsPanel = "general" | "agents" | "models" | "mcp" | "permissions" | null;
+export type SettingsPanel = "general" | "agents" | "models" | "mcp" | "plugins" | "permissions" | null;
 
 interface SettingsState {
   // UI State
@@ -62,6 +62,7 @@ interface SettingsState {
   showHiddenFiles: boolean;
   autoConnect: boolean;
   theme: "light" | "dark" | "system";
+  autoCleanEmptySessions: boolean;
 }
 
 interface SettingsActions {
@@ -92,6 +93,7 @@ interface SettingsActions {
   setShowHiddenFiles: (show: boolean) => void;
   setAutoConnect: (auto: boolean) => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
+  setAutoCleanEmptySessions: (auto: boolean) => void;
 }
 
 const initialState: SettingsState = {
@@ -143,6 +145,7 @@ const initialState: SettingsState = {
   showHiddenFiles: false,
   autoConnect: true,
   theme: "system",
+  autoCleanEmptySessions: true,
 };
 
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
@@ -293,6 +296,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
           state.theme = theme;
         });
       },
+
+      setAutoCleanEmptySessions: (auto) => {
+        set((state) => {
+          state.autoCleanEmptySessions = auto;
+        });
+      },
     })),
     {
       name: "aero-code-settings",
@@ -304,6 +313,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         showHiddenFiles: state.showHiddenFiles,
         autoConnect: state.autoConnect,
         theme: state.theme,
+        autoCleanEmptySessions: state.autoCleanEmptySessions,
       }),
     }
   )

@@ -16,6 +16,7 @@ import { getTransport } from "./transport";
 import { WebSocketTransport } from "./transport/websocket";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import type {
   SessionId,
   SessionInfo,
@@ -129,13 +130,21 @@ class AgentAPI {
   async listSessions(cwd?: string, limit?: number, offset?: number): Promise<ListSessionsResponse> {
     const transport = getTransport();
     const sessionStore = useSessionStore.getState();
+    const settingsStore = useSettingsStore.getState();
 
     sessionStore.setAvailableSessionsLoading(true);
 
     try {
       const response = await transport.listSessions(cwd, limit, offset);
-      sessionStore.setAvailableSessions(response.sessions);
-      return response;
+
+      // Filter out empty sessions if auto-clean is enabled
+      let sessions = response.sessions;
+      if (settingsStore.autoCleanEmptySessions) {
+        sessions = sessions.filter(s => s.messageCount > 0 || s.active);
+      }
+
+      sessionStore.setAvailableSessions(sessions);
+      return { ...response, sessions };
     } finally {
       sessionStore.setAvailableSessionsLoading(false);
     }

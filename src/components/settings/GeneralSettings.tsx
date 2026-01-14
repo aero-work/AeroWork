@@ -6,9 +6,11 @@ export function GeneralSettings() {
   const autoConnect = useSettingsStore((state) => state.autoConnect);
   const showHiddenFiles = useSettingsStore((state) => state.showHiddenFiles);
   const theme = useSettingsStore((state) => state.theme);
+  const autoCleanEmptySessions = useSettingsStore((state) => state.autoCleanEmptySessions);
   const setAutoConnect = useSettingsStore((state) => state.setAutoConnect);
   const setShowHiddenFiles = useSettingsStore((state) => state.setShowHiddenFiles);
   const setTheme = useSettingsStore((state) => state.setTheme);
+  const setAutoCleanEmptySessions = useSettingsStore((state) => state.setAutoCleanEmptySessions);
 
   return (
     <div className="space-y-6">
@@ -51,6 +53,23 @@ export function GeneralSettings() {
             id="hidden-files"
             checked={showHiddenFiles}
             onCheckedChange={setShowHiddenFiles}
+          />
+        </div>
+
+        {/* Auto Clean Empty Sessions */}
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="auto-clean-sessions" className="text-base">
+              Auto Clean Empty Sessions
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Automatically remove empty sessions when loading session list.
+            </p>
+          </div>
+          <Switch
+            id="auto-clean-sessions"
+            checked={autoCleanEmptySessions}
+            onCheckedChange={setAutoCleanEmptySessions}
           />
         </div>
 
