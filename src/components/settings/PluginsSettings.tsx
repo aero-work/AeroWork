@@ -467,7 +467,7 @@ function MarketplaceCard({
             </div>
           </div>
           {marketplace.description && (
-            <CardDescription className="text-xs sm:text-sm mt-1">{marketplace.description}</CardDescription>
+            <CardDescription className="text-xs sm:text-sm mt-1 break-words">{marketplace.description}</CardDescription>
           )}
         </CardHeader>
         <CollapsibleContent>
@@ -545,7 +545,7 @@ function PluginRow({
           )}
         </div>
         {plugin.description && (
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+          <p className="text-[10px] sm:text-xs text-muted-foreground break-words">
             {plugin.description}
           </p>
         )}
