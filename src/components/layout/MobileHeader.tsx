@@ -18,15 +18,8 @@ import {
   MoreVertical,
 } from "lucide-react";
 
-// View-specific titles
-const VIEW_TITLES: Record<MobileView, string> = {
-  "session-list": "Aero Code",
-  conversation: "", // Dynamic - will use project name
-  files: "Files",
-  "file-viewer": "", // Dynamic - will use file name
-  terminal: "Terminal",
-  settings: "Settings",
-};
+// Primary views show "Aero Code", secondary views show dynamic titles
+const PRIMARY_VIEWS: MobileView[] = ["session-list", "files", "terminal", "settings"];
 
 const statusConfig: Record<
   ConnectionStatus,
@@ -72,7 +65,13 @@ export function MobileHeader() {
   };
 
   // Get title based on current view
+  // Primary views (tab bar pages) show "Aero Code"
+  // Secondary views show dynamic titles
   const getTitle = (): string => {
+    if (PRIMARY_VIEWS.includes(currentView)) {
+      return "Aero Code";
+    }
+
     switch (currentView) {
       case "conversation":
         // Show project name from active session
@@ -86,7 +85,7 @@ export function MobileHeader() {
         return "File";
 
       default:
-        return VIEW_TITLES[currentView];
+        return "Aero Code";
     }
   };
 
@@ -218,7 +217,7 @@ export function MobileHeader() {
         <h1
           className="font-semibold text-base truncate"
           style={
-            currentView === "session-list"
+            PRIMARY_VIEWS.includes(currentView)
               ? { fontFamily: "Quantico, sans-serif", fontStyle: "italic" }
               : undefined
           }
