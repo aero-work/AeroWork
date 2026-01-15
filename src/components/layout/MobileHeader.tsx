@@ -1,35 +1,21 @@
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useMobileNavStore, type MobileView } from "@/stores/mobileNavStore";
-import { useAgentStore, type ConnectionStatus } from "@/stores/agentStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useFileStore } from "@/stores/fileStore";
-import { agentAPI } from "@/services/api";
+import { ProjectSelector } from "@/components/common/ProjectSelector";
 import * as fileService from "@/services/fileService";
 import {
   Menu,
   ArrowLeft,
-  Plug,
-  PlugZap,
-  Loader2,
-  AlertCircle,
   Save,
   Download,
   MoreVertical,
+  FolderOpen,
 } from "lucide-react";
 
 // Primary views show "Aero Code", secondary views show dynamic titles
 const PRIMARY_VIEWS: MobileView[] = ["session-list", "files", "terminal", "settings"];
-
-const statusConfig: Record<
-  ConnectionStatus,
-  { icon: React.ComponentType<{ className?: string }>; className: string }
-> = {
-  disconnected: { icon: Plug, className: "text-muted-foreground" },
-  connecting: { icon: Loader2, className: "text-blue-500 animate-spin" },
-  connected: { icon: PlugZap, className: "text-green-500" },
-  error: { icon: AlertCircle, className: "text-destructive" },
-};
 
 export function MobileHeader() {
   const currentView = useMobileNavStore((state) => state.currentView);
@@ -38,17 +24,14 @@ export function MobileHeader() {
   const openSidebar = useMobileNavStore((state) => state.openSidebar);
   const viewingFilePath = useMobileNavStore((state) => state.viewingFilePath);
 
-  const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const openFiles = useFileStore((state) => state.openFiles);
   const markFileSaved = useFileStore((state) => state.markFileSaved);
+  const addRecentProject = useFileStore((state) => state.addRecentProject);
 
   // Get active session info for conversation header
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const availableSessions = useSessionStore((state) => state.availableSessions);
   const activeSession = availableSessions.find((s) => s.id === activeSessionId);
-
-  const { icon: StatusIcon, className: statusClassName } = statusConfig[connectionStatus];
-  const isConnected = connectionStatus === "connected";
 
   // Get current file being viewed
   const currentFile = openFiles.find((f) => f.path === viewingFilePath);
@@ -87,20 +70,6 @@ export function MobileHeader() {
 
       default:
         return "Aero Code";
-    }
-  };
-
-  const handleConnect = async () => {
-    if (connectionStatus === "connecting") return;
-
-    if (isConnected) {
-      await agentAPI.disconnect();
-    } else {
-      try {
-        await agentAPI.connect();
-      } catch (error) {
-        console.error("Failed to connect:", error);
-      }
     }
   };
 
@@ -173,23 +142,23 @@ export function MobileHeader() {
       case "session-list":
       case "files":
       case "terminal":
-        // Connection status button
-        return (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleConnect}
-            disabled={connectionStatus === "connecting"}
-            className="h-9 w-9"
-            title={isConnected ? "Disconnect" : "Connect"}
-          >
-            <StatusIcon className={statusClassName} />
-          </Button>
-        );
-
       case "settings":
-        // No right actions for settings
-        return null;
+        // Project selector button
+        return (
+          <ProjectSelector
+            onSelect={addRecentProject}
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                title="Select Project"
+              >
+                <FolderOpen className="w-5 h-5" />
+              </Button>
+            }
+          />
+        );
 
       default:
         return null;
