@@ -24,6 +24,8 @@ interface SessionState {
   // Available sessions from backend (historical + active)
   availableSessions: SessionInfo[];
   availableSessionsLoading: boolean;
+  // Sessions with dangerous mode enabled (auto-approve all tool calls)
+  dangerousModeSessions: Set<SessionId>;
 }
 
 interface SessionActions {
@@ -32,6 +34,8 @@ interface SessionActions {
   setError: (error: string | null) => void;
   setAvailableSessions: (sessions: SessionInfo[]) => void;
   setAvailableSessionsLoading: (loading: boolean) => void;
+  toggleDangerousMode: (sessionId: SessionId) => void;
+  isDangerousMode: (sessionId: SessionId) => boolean;
   reset: () => void;
 }
 
@@ -41,6 +45,7 @@ const initialState: SessionState = {
   error: null,
   availableSessions: [],
   availableSessionsLoading: false,
+  dangerousModeSessions: new Set<SessionId>(),
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -76,6 +81,23 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         set((state) => {
           state.availableSessionsLoading = loading;
         });
+      },
+
+      toggleDangerousMode: (sessionId) => {
+        set((state) => {
+          const newSet = new Set(state.dangerousModeSessions);
+          if (newSet.has(sessionId)) {
+            newSet.delete(sessionId);
+          } else {
+            newSet.add(sessionId);
+          }
+          state.dangerousModeSessions = newSet;
+        });
+      },
+
+      isDangerousMode: (_sessionId) => {
+        // This is accessed via getState() not as a selector
+        return false; // Placeholder, actual check done via getState()
       },
 
       reset: () => {

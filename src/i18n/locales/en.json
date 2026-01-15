@@ -47,6 +47,9 @@
     "tapToStart": "Tap the button above to start your first conversation.",
     "loadingSessions": "Loading sessions...",
     "conversation": "Conversation",
+    "dangerousMode": "Dangerous Mode",
+    "dangerousModeDescription": "Auto-approve all tool calls (use with caution)",
+    "dangerousModeEnabled": "DANGEROUS",
     "status": {
       "ready": "Ready",
       "running": "Running",

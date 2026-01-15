@@ -96,6 +96,18 @@ class AgentAPI {
     request: PermissionRequest
   ): Promise<PermissionOutcome> => {
     const agentStore = useAgentStore.getState();
+    const sessionStore = useSessionStore.getState();
+
+    // Check if session is in dangerous mode (auto-approve all)
+    if (request.sessionId && sessionStore.dangerousModeSessions.has(request.sessionId)) {
+      const allowOption = request.options.find(
+        (opt) => opt.kind === "allow_once" || opt.kind === "allow_always"
+      );
+      if (allowOption) {
+        console.log("[DangerousMode] Auto-approving tool call for session:", request.sessionId);
+        return Promise.resolve({ outcome: "selected", optionId: allowOption.optionId });
+      }
+    }
 
     // Check permission rules first (synchronous, uses settings store)
     const autoOutcome = checkPermissionRules(request);

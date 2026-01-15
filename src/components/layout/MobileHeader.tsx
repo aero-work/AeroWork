@@ -1,5 +1,12 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMobileNavStore, type MobileView } from "@/stores/mobileNavStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useFileStore } from "@/stores/fileStore";
@@ -12,6 +19,8 @@ import {
   Save,
   Download,
   FolderOpen,
+  MoreVertical,
+  AlertTriangle,
 } from "lucide-react";
 
 /** Get connection status indicator color */
@@ -48,6 +57,7 @@ function getConnectionText(status: ConnectionStatus): string | null {
 const PRIMARY_VIEWS: MobileView[] = ["session-list", "files", "terminal", "settings"];
 
 export function MobileHeader() {
+  const { t } = useTranslation();
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
 
   const currentView = useMobileNavStore((state) => state.currentView);
@@ -65,7 +75,12 @@ export function MobileHeader() {
   // Get active session info for conversation header
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const availableSessions = useSessionStore((state) => state.availableSessions);
+  const dangerousModeSessions = useSessionStore((state) => state.dangerousModeSessions);
+  const toggleDangerousMode = useSessionStore((state) => state.toggleDangerousMode);
   const activeSession = availableSessions.find((s) => s.id === activeSessionId);
+
+  // Check if current session is in dangerous mode
+  const isDangerousMode = activeSessionId ? dangerousModeSessions.has(activeSessionId) : false;
 
   // Get current file being viewed
   const currentFile = openFiles.find((f) => f.path === viewingFilePath);
@@ -166,8 +181,35 @@ export function MobileHeader() {
         );
 
       case "conversation":
-        // No actions for conversation view currently
-        return null;
+        // Dangerous mode indicator + options menu
+        return (
+          <>
+            {/* Dangerous mode indicator */}
+            {isDangerousMode && (
+              <span className="text-xs font-bold text-red-500 animate-pulse mr-1">
+                {t("session.dangerousModeEnabled")}
+              </span>
+            )}
+            {/* Options menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => activeSessionId && toggleDangerousMode(activeSessionId)}
+                  className={cn(isDangerousMode && "text-red-500")}
+                >
+                  <AlertTriangle className={cn("w-4 h-4 mr-2", isDangerousMode && "text-red-500")} />
+                  {t("session.dangerousMode")}
+                  {isDangerousMode && " ✓"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        );
 
       case "session-list":
       case "files":

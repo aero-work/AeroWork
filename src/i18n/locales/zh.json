@@ -47,6 +47,9 @@
     "tapToStart": "点击上方按钮开始您的第一个对话",
     "loadingSessions": "加载会话中...",
     "conversation": "对话",
+    "dangerousMode": "危险模式",
+    "dangerousModeDescription": "自动通过所有工具调用（谨慎使用）",
+    "dangerousModeEnabled": "危险",
     "status": {
       "ready": "就绪",
       "running": "运行中",
