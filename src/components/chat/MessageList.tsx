@@ -206,7 +206,7 @@ function MessageBubble({ message }: { message: Message }) {
       </div>
       <div
         className={cn(
-          "relative flex-1 max-w-[80%] rounded-xl px-3 py-2 group shadow-sm",
+          "relative flex-1 max-w-[80%] rounded-lg px-2.5 py-1.5 group shadow-sm",
           isUser
             ? "bg-blue-500 dark:bg-blue-600/80 text-white"
             : "bg-card text-card-foreground border border-border"
