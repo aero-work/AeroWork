@@ -16,6 +16,20 @@ use uuid::Uuid;
 use crate::acp::{SessionId, SessionModeState, SessionModelState, ToolCall, ToolCallStatus, ToolCallContent, ContentBlock};
 use super::session_state::{ChatItem, Message, MessageRole};
 
+/// Session status for UI display
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionStatus {
+    /// Session file exists but not loaded/connected
+    Stopped,
+    /// Session is connected and waiting for user input
+    Idle,
+    /// Session is processing/running
+    Running,
+    /// Session is waiting for user permission or AskUserQuestion response
+    Pending,
+}
+
 /// Information about a session (both active and historical)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +46,8 @@ pub struct SessionInfo {
     pub cwd: String,
     /// Whether session is currently active (connected to agent)
     pub active: bool,
+    /// Session status for UI display
+    pub status: SessionStatus,
     /// Project key (derived from cwd)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
@@ -54,6 +70,7 @@ pub struct ActiveSession {
     pub last_activity: DateTime<Utc>,
     pub modes: Option<SessionModeState>,
     pub models: Option<SessionModelState>,
+    pub status: SessionStatus,
 }
 
 /// Response for list_sessions command
@@ -100,6 +117,7 @@ impl SessionRegistry {
             last_activity: now,
             modes,
             models,
+            status: SessionStatus::Idle, // New sessions start as idle
         };
 
         let mut sessions = self.active_sessions.write();
@@ -129,6 +147,22 @@ impl SessionRegistry {
         if let Some(session) = sessions.get_mut(id) {
             session.modes = Some(modes);
         }
+    }
+
+    /// Update session status
+    pub fn update_status(&self, id: &SessionId, status: SessionStatus) {
+        let mut sessions = self.active_sessions.write();
+        if let Some(session) = sessions.get_mut(id) {
+            session.status = status;
+            session.last_activity = Utc::now();
+            debug!("Session {} status updated to {:?}", id, status);
+        }
+    }
+
+    /// Get session status
+    pub fn get_status(&self, id: &SessionId) -> Option<SessionStatus> {
+        let sessions = self.active_sessions.read();
+        sessions.get(id).map(|s| s.status)
     }
 
     /// Get active session
@@ -180,6 +214,7 @@ impl SessionRegistry {
                         last_activity: session.last_activity.to_rfc3339(),
                         cwd: session.cwd.clone(),
                         active: true,
+                        status: session.status,
                         project: Some(cwd_to_path_key(&session.cwd)),
                         last_user_message: None,
                         last_assistant_message: None,
@@ -355,6 +390,7 @@ impl SessionRegistry {
                     last_activity: session.last_activity.to_rfc3339(),
                     cwd: session.cwd.clone(),
                     active: true,
+                    status: session.status,
                     project: Some(cwd_to_path_key(&session.cwd)),
                     last_user_message: None,
                     last_assistant_message: None,
@@ -885,6 +921,7 @@ fn parse_session_file(path: &PathBuf) -> Option<SessionInfo> {
         last_activity,
         cwd,
         active: false,
+        status: SessionStatus::Stopped, // Historical sessions are stopped
         project: None,
         last_user_message,
         last_assistant_message,

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MobileHeader } from "./MobileHeader";
 import { MobileTabBar } from "./MobileTabBar";
-import { MobileSidebar } from "./MobileSidebar";
 import { MobileSessionList } from "./MobileSessionList";
 import { MobileConversation } from "./MobileConversation";
 import { SettingsPage } from "@/components/settings";
@@ -448,7 +447,6 @@ export function MobileLayout() {
       </main>
 
       <MobileTabBar />
-      <MobileSidebar />
       <PermissionDialog />
     </div>
   );

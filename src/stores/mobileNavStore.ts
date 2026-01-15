@@ -27,7 +27,6 @@ const VIEWS_WITH_BACK_BUTTON: MobileView[] = ["conversation", "file-viewer"];
 interface MobileNavState {
   currentView: MobileView;
   previousView: MobileView | null;
-  isSidebarOpen: boolean;
   viewingFilePath: string | null;
 
   // Computed-like getters
@@ -41,17 +40,11 @@ interface MobileNavState {
   goBack: () => void;
   openFileViewer: (filePath: string) => void;
   closeFileViewer: () => void;
-
-  // Sidebar actions
-  openSidebar: () => void;
-  closeSidebar: () => void;
-  toggleSidebar: () => void;
 }
 
 export const useMobileNavStore = create<MobileNavState>((set, get) => ({
   currentView: "session-list",
   previousView: null,
-  isSidebarOpen: false,
   viewingFilePath: null,
 
   // Check if tab bar should be shown
@@ -71,7 +64,6 @@ export const useMobileNavStore = create<MobileNavState>((set, get) => ({
     set((state) => ({
       previousView: state.currentView,
       currentView: view,
-      isSidebarOpen: false,
       // Clear file viewer path if leaving file-viewer
       viewingFilePath: view === "file-viewer" ? state.viewingFilePath : null,
     })),
@@ -81,7 +73,6 @@ export const useMobileNavStore = create<MobileNavState>((set, get) => ({
     set((state) => ({
       previousView: state.currentView,
       currentView: "conversation",
-      isSidebarOpen: false,
     })),
 
   // Exit conversation view back to session list
@@ -127,9 +118,4 @@ export const useMobileNavStore = create<MobileNavState>((set, get) => ({
       currentView: "files",
       viewingFilePath: null,
     })),
-
-  // Sidebar controls
-  openSidebar: () => set({ isSidebarOpen: true }),
-  closeSidebar: () => set({ isSidebarOpen: false }),
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 }));

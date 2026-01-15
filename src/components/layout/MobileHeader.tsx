@@ -1,12 +1,13 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useMobileNavStore, type MobileView } from "@/stores/mobileNavStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useFileStore } from "@/stores/fileStore";
-import { ProjectSelector } from "@/components/common/ProjectSelector";
+import { useAgentStore, type ConnectionStatus } from "@/stores/agentStore";
+import { MobileProjectSelector } from "@/components/layout/MobileProjectSelector";
+import { cn } from "@/lib/utils";
 import * as fileService from "@/services/fileService";
 import {
-  Menu,
   ArrowLeft,
   Save,
   Download,
@@ -14,19 +15,53 @@ import {
   FolderOpen,
 } from "lucide-react";
 
+/** Get connection status indicator color */
+function getConnectionColor(status: ConnectionStatus): string {
+  switch (status) {
+    case "connected":
+      return "bg-green-500";
+    case "connecting":
+      return "bg-yellow-500";
+    case "error":
+      return "bg-red-500";
+    case "disconnected":
+    default:
+      return "bg-gray-400";
+  }
+}
+
+/** Get connection status text (only for non-connected states) */
+function getConnectionText(status: ConnectionStatus): string | null {
+  switch (status) {
+    case "connecting":
+      return "Connecting...";
+    case "error":
+      return "Failed";
+    case "disconnected":
+      return "Offline";
+    case "connected":
+    default:
+      return null; // No text for connected state
+  }
+}
+
 // Primary views show "Aero Code", secondary views show dynamic titles
 const PRIMARY_VIEWS: MobileView[] = ["session-list", "files", "terminal", "settings"];
 
 export function MobileHeader() {
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+
   const currentView = useMobileNavStore((state) => state.currentView);
   const goBack = useMobileNavStore((state) => state.goBack);
   const showBackButton = useMobileNavStore((state) => state.showBackButton);
-  const openSidebar = useMobileNavStore((state) => state.openSidebar);
   const viewingFilePath = useMobileNavStore((state) => state.viewingFilePath);
 
   const openFiles = useFileStore((state) => state.openFiles);
   const markFileSaved = useFileStore((state) => state.markFileSaved);
   const addRecentProject = useFileStore((state) => state.addRecentProject);
+  const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
+
+  const connectionStatus = useAgentStore((state) => state.connectionStatus);
 
   // Get active session info for conversation header
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -143,21 +178,20 @@ export function MobileHeader() {
       case "files":
       case "terminal":
       case "settings":
-        // Project selector button
+        // Project selector button - opens full-screen selector on mobile
         return (
-          <ProjectSelector
-            onSelect={addRecentProject}
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                title="Select Project"
-              >
-                <FolderOpen className="w-5 h-5" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-2 gap-1.5 max-w-[140px]"
+            title="Select Project"
+            onClick={() => setProjectSelectorOpen(true)}
+          >
+            <FolderOpen className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate text-sm">
+              {currentWorkingDir ? currentWorkingDir.split("/").pop() : "Open"}
+            </span>
+          </Button>
         );
 
       default:
@@ -165,40 +199,71 @@ export function MobileHeader() {
     }
   };
 
+  // Handle project selection from mobile selector
+  // addRecentProject already sets currentWorkingDir internally
+  const handleProjectSelect = useCallback((path: string) => {
+    addRecentProject(path);
+  }, [addRecentProject]);
+
   return (
-    <header className="border-b border-border bg-card flex-shrink-0">
-      {/* iOS safe area spacer for status bar */}
-      <div className="safe-area-top" />
-      {/* Header content */}
-      <div className="h-12 flex items-center justify-between px-2">
-        {/* Left side: Back button or Hamburger menu */}
-        <div className="flex items-center gap-1 min-w-0">
-        {showBackButton() ? (
-          <Button variant="ghost" size="icon" onClick={handleGoBack} className="h-9 w-9 flex-shrink-0">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon" onClick={openSidebar} className="h-9 w-9 flex-shrink-0">
-            <Menu className="w-5 h-5" />
-          </Button>
-        )}
+    <>
+      <header className="border-b border-border bg-card flex-shrink-0">
+        {/* iOS safe area spacer for status bar */}
+        <div className="safe-area-top" />
+        {/* Header content */}
+        <div className="h-12 flex items-center justify-between px-2">
+          {/* Left side: Back button or Title */}
+          <div className="flex items-center gap-1 min-w-0">
+            {showBackButton() && (
+              <Button variant="ghost" size="icon" onClick={handleGoBack} className="h-9 w-9 flex-shrink-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
 
-        {/* Title */}
-        <h1
-          className="font-semibold text-base truncate"
-          style={
-            PRIMARY_VIEWS.includes(currentView)
-              ? { fontFamily: "Quantico, sans-serif", fontStyle: "italic" }
-              : undefined
-          }
-        >
-          {getTitle()}
-        </h1>
-      </div>
+            {/* Title */}
+            <h1
+              className="font-semibold text-base truncate pl-2"
+              style={
+                PRIMARY_VIEWS.includes(currentView)
+                  ? { fontFamily: "Quantico, sans-serif", fontStyle: "italic" }
+                  : undefined
+              }
+            >
+              {getTitle()}
+            </h1>
+          </div>
 
-        {/* Right side: Context-specific actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">{renderRightActions()}</div>
-      </div>
-    </header>
+          {/* Right side: Context-specific actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {renderRightActions()}
+
+            {/* Connection status indicator (only on primary views) */}
+            {PRIMARY_VIEWS.includes(currentView) && (
+              <div className="flex items-center gap-1.5 ml-1">
+                {getConnectionText(connectionStatus) && (
+                  <span className="text-xs text-muted-foreground">
+                    {getConnectionText(connectionStatus)}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    getConnectionColor(connectionStatus),
+                    connectionStatus === "connecting" && "animate-pulse"
+                  )}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Full-screen project selector for mobile */}
+      <MobileProjectSelector
+        open={projectSelectorOpen}
+        onClose={() => setProjectSelectorOpen(false)}
+        onSelect={handleProjectSelect}
+      />
+    </>
   );
 }

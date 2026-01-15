@@ -285,6 +285,9 @@ export interface Session {
   updatedAt: number;
 }
 
+/** Session status for UI display */
+export type SessionStatus = "stopped" | "idle" | "running" | "pending";
+
 // Session info from backend (list_sessions response)
 export interface SessionInfo {
   id: SessionId;
@@ -293,6 +296,8 @@ export interface SessionInfo {
   lastActivity: string;
   cwd: string;
   active: boolean;
+  /** Session status: stopped (not loaded), idle (waiting input), running (processing), pending (waiting permission) */
+  status: SessionStatus;
   project?: string;
   lastUserMessage?: string;
   lastAssistantMessage?: string;

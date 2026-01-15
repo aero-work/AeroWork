@@ -1,7 +1,37 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import type { SessionInfo } from "@/types/acp";
+import type { SessionInfo, SessionStatus } from "@/types/acp";
 import { MessageSquare, Clock, Trash2, Square } from "lucide-react";
+
+/** Get status badge styles based on session status */
+function getStatusBadgeStyles(status: SessionStatus): string {
+  switch (status) {
+    case "running":
+      return "bg-blue-500/20 text-blue-600 dark:text-blue-400"; // Blue for running
+    case "pending":
+      return "bg-orange-500/20 text-orange-600 dark:text-orange-400"; // Orange for waiting
+    case "idle":
+      return "bg-green-500/20 text-green-600 dark:text-green-400"; // Green for ready
+    case "stopped":
+    default:
+      return "bg-gray-500/20 text-gray-600 dark:text-gray-400"; // Gray for stopped
+  }
+}
+
+/** Get status label text */
+function getStatusLabel(status: SessionStatus): string {
+  switch (status) {
+    case "running":
+      return "Running";
+    case "pending":
+      return "Pending";
+    case "idle":
+      return "Ready";
+    case "stopped":
+    default:
+      return "Stopped";
+  }
+}
 
 interface SwipeableSessionCardProps {
   session: SessionInfo;
@@ -199,8 +229,8 @@ export function SwipeableSessionCard({
       className="relative overflow-hidden"
     >
       {/* Action button (behind the card) */}
-      {isActive ? (
-        /* Stop button for active sessions */
+      {session.active ? (
+        /* Stop button for active/running sessions */
         <div
           className="absolute right-0 top-0 bottom-0 flex items-center justify-center bg-orange-500 text-white"
           style={{ width: DELETE_WIDTH }}
@@ -235,7 +265,7 @@ export function SwipeableSessionCard({
         className={cn(
           "w-full text-left p-4 border-b border-border transition-colors cursor-pointer bg-background relative",
           "active:bg-accent",
-          isActive && "bg-accent/30 border-l-2 border-l-primary",
+          isActive && "bg-accent border-l-2 border-l-primary",
           !isDragging && "transition-transform duration-200 ease-out"
         )}
         style={{
@@ -264,6 +294,15 @@ export function SwipeableSessionCard({
 
             {/* Time + status row */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {/* Status badge */}
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full font-medium flex-shrink-0",
+                  getStatusBadgeStyles(session.status)
+                )}
+              >
+                {getStatusLabel(session.status)}
+              </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {timeStr}
@@ -271,11 +310,6 @@ export function SwipeableSessionCard({
               {session.messageCount > 0 && (
                 <span className="bg-muted px-1.5 py-0.5 rounded-full">
                   {session.messageCount} msgs
-                </span>
-              )}
-              {session.active && (
-                <span className="bg-green-500/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">
-                  Active
                 </span>
               )}
             </div>

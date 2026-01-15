@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { SwipeableSessionCard } from "@/components/chat/SwipeableSessionCard";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,6 +48,13 @@ export function MobileSessionList() {
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
 
   const enterConversation = useMobileNavStore((state) => state.enterConversation);
+
+  // Load sessions when connected and project is selected
+  useEffect(() => {
+    if (isConnected && currentWorkingDir) {
+      agentAPI.listSessions(currentWorkingDir, 50, 0).catch(console.error);
+    }
+  }, [isConnected, currentWorkingDir]);
 
   // Create new session
   const handleNewSession = useCallback(async () => {
@@ -110,10 +117,10 @@ export function MobileSessionList() {
           Welcome to Aero Code
         </h2>
         <p className="text-sm text-center mb-4">
-          Connect to the AI agent to start chatting.
+          Connecting to the AI agent...
         </p>
         <p className="text-xs text-center text-muted-foreground">
-          Use the <strong>Connect</strong> button in the header.
+          Check <strong>Settings</strong> if connection fails.
         </p>
       </div>
     );
@@ -128,7 +135,7 @@ export function MobileSessionList() {
           Select a Project
         </h2>
         <p className="text-sm text-center">
-          Open the menu and select a project folder to get started.
+          Tap the <strong>Open</strong> button in the header to select a project folder.
         </p>
       </div>
     );

@@ -185,6 +185,12 @@ impl WebSocketServer {
                     // Also keep in global state for backward compatibility
                     state_clone.set_pending_permission(Some(request.clone()));
 
+                    // Set session status to Pending (waiting for user response)
+                    state_clone.session_registry.update_status(
+                        &request.session_id,
+                        crate::core::SessionStatus::Pending,
+                    );
+
                     let msg = JsonRpcNotification {
                         jsonrpc: "2.0".to_string(),
                         method: "permission/request".to_string(),
@@ -423,6 +429,8 @@ async fn dispatch_method(
             // Clear pending permission from session state
             if let Some(ref sid) = session_id {
                 state.session_state_manager.set_pending_permission(sid, None);
+                // Set session status back to Running (continuing to process)
+                state.session_registry.update_status(sid, crate::core::SessionStatus::Running);
             }
             // Also clear global state for backward compatibility
             state.set_pending_permission(None);
@@ -1104,6 +1112,9 @@ async fn create_session_handler(state: &Arc<AppState>, cwd: &str) -> Result<NewS
 async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &str, message_id: Option<String>, event_tx: &broadcast::Sender<String>) -> Result<PromptResponse, String> {
     info!("WebSocket: Sending prompt to session {}", session_id);
 
+    // Set session status to Running
+    state.session_registry.update_status(&session_id.to_string(), crate::core::SessionStatus::Running);
+
     // Add user message to SessionStateManager (single source of truth)
     // If message_id is provided (from frontend optimistic update), use it to avoid duplicates
     state.session_state_manager.add_user_message(&session_id.to_string(), content.to_string(), message_id.clone());
@@ -1230,6 +1241,10 @@ async fn send_prompt_handler(state: &Arc<AppState>, session_id: &str, content: &
     };
 
     info!("WebSocket: Prompt completed with stop_reason: {:?}", response.stop_reason);
+
+    // Set session status back to Idle after prompt completes
+    state.session_registry.update_status(&session_id.to_string(), crate::core::SessionStatus::Idle);
+
     Ok(response)
 }
 

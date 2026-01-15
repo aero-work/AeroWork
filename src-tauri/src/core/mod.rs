@@ -13,7 +13,7 @@ pub use plugins::{
     AddMarketplaceRequest, InstallPluginRequest, InstallPluginResponse,
     ListPluginsResponse, MarketplaceResponse, PluginManager, UninstallPluginResponse,
 };
-pub use session_registry::{ListSessionsResponse, SessionInfo, SessionRegistry};
+pub use session_registry::{ListSessionsResponse, SessionInfo, SessionRegistry, SessionStatus};
 pub use session_state::{ChatItem, Message, MessageRole, SessionState, SessionStateUpdate};
 pub use session_state_manager::{ClientId, SessionStateManager, SharedSessionStateManager};
 pub use state::{AppState, SessionActivated};
