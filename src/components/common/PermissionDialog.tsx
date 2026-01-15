@@ -48,40 +48,43 @@ export function PermissionDialog() {
 
   return (
     <Dialog open={!!pendingPermission} onOpenChange={() => handleCancel()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[calc(100vh-4rem)] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-yellow-500" />
-            Permission Required
+            <Shield className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+            <span className="truncate">Permission Required</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">
             The agent wants to perform the following action:
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="bg-muted rounded-lg p-3">
-            <p className="font-medium text-sm">{String(toolCall.title ?? "Unknown action")}</p>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="bg-muted rounded-lg p-2 sm:p-3">
+            <p className="font-medium text-xs sm:text-sm break-words">
+              {String(toolCall.title ?? "Unknown action")}
+            </p>
             {toolCall.rawInput != null && (
-              <pre className="mt-2 text-xs text-muted-foreground overflow-auto max-h-32">
+              <pre className="mt-2 text-[10px] sm:text-xs text-muted-foreground overflow-x-auto max-h-48 whitespace-pre-wrap break-all">
                 {String(JSON.stringify(toolCall.rawInput, null, 2))}
               </pre>
             )}
           </div>
         </div>
 
-        <DialogFooter className="flex-wrap gap-2 sm:gap-2">
+        <DialogFooter className="flex-shrink-0 flex-wrap gap-1.5 sm:gap-2">
           {options.map((option) => {
             const { icon: Icon, variant } = kindConfig[option.kind];
             return (
               <Button
                 key={option.optionId}
                 variant={variant}
+                size="sm"
                 onClick={() => handleOption(option.optionId)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1.5 text-xs sm:text-sm"
               >
-                <Icon className="w-4 h-4" />
-                {option.name}
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="truncate">{option.name}</span>
               </Button>
             );
           })}
