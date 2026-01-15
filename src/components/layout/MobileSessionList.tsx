@@ -101,16 +101,14 @@ export function MobileSessionList() {
     }
   }, []);
 
-  // Stop active session (disconnect from ACP agent)
-  const handleStopSession = useCallback(async () => {
+  // Stop/cancel active session (keeps connection alive)
+  const handleStopSession = useCallback(async (sessionId: string) => {
     try {
-      await agentAPI.disconnect();
-      // Clear active session after disconnect
-      setActiveSession(null);
+      await agentAPI.cancelSession(sessionId);
     } catch (error) {
       console.error("Failed to stop session:", error);
     }
-  }, [setActiveSession]);
+  }, []);
 
   // Not connected state
   if (!isConnected) {
@@ -195,7 +193,7 @@ export function MobileSessionList() {
                 isActive={session.id === activeSessionId}
                 onClick={() => handleOpenSession(session.id)}
                 onDelete={() => handleDeleteSession(session.id)}
-                onStop={handleStopSession}
+                onStop={() => handleStopSession(session.id)}
               />
             ))}
           </div>
