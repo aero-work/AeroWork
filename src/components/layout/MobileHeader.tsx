@@ -31,12 +31,6 @@ const statusConfig: Record<
   error: { icon: AlertCircle, className: "text-destructive" },
 };
 
-function getProjectName(cwd: string | null): string {
-  if (!cwd) return "Conversation";
-  const parts = cwd.split("/").filter(Boolean);
-  return parts[parts.length - 1] || "Conversation";
-}
-
 export function MobileHeader() {
   const currentView = useMobileNavStore((state) => state.currentView);
   const goBack = useMobileNavStore((state) => state.goBack);
@@ -45,7 +39,6 @@ export function MobileHeader() {
   const viewingFilePath = useMobileNavStore((state) => state.viewingFilePath);
 
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
-  const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const openFiles = useFileStore((state) => state.openFiles);
   const markFileSaved = useFileStore((state) => state.markFileSaved);
 
@@ -74,8 +67,16 @@ export function MobileHeader() {
 
     switch (currentView) {
       case "conversation":
-        // Show project name from active session
-        return getProjectName(activeSession?.cwd || currentWorkingDir);
+        // Show session summary or first user message
+        if (activeSession?.lastUserMessage) {
+          const msg = activeSession.lastUserMessage;
+          return msg.length > 20 ? msg.slice(0, 20) + "..." : msg;
+        }
+        if (activeSession?.summary && activeSession.summary !== "New Session") {
+          const summary = activeSession.summary;
+          return summary.length > 20 ? summary.slice(0, 20) + "..." : summary;
+        }
+        return "Conversation";
 
       case "file-viewer":
         // Show file name
