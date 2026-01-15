@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Save,
   Download,
-  MoreVertical,
   FolderOpen,
 } from "lucide-react";
 
@@ -167,12 +166,8 @@ export function MobileHeader() {
         );
 
       case "conversation":
-        // Conversation: More menu (for future: mode switch, fork, etc.)
-        return (
-          <Button variant="ghost" size="icon" className="h-9 w-9" title="Options">
-            <MoreVertical className="w-5 h-5" />
-          </Button>
-        );
+        // No actions for conversation view currently
+        return null;
 
       case "session-list":
       case "files":
