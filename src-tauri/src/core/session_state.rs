@@ -166,13 +166,37 @@ impl SessionState {
                 self.handle_agent_message_chunk(content)
             }
             SessionUpdate::ToolCall(tool_call) => {
-                // Check if tool call already exists to avoid duplicates
-                if self.tool_calls_map.contains_key(&tool_call.tool_call_id) {
-                    // Already exists, treat as update instead
-                    return SessionStateUpdate::ToolCallUpdated {
-                        tool_call: tool_call.clone(),
-                    };
+                // Check if tool call already exists (avoid duplicates)
+                if let Some(&idx) = self.tool_calls_map.get(&tool_call.tool_call_id) {
+                    // Update existing tool call instead of adding duplicate
+                    if let ChatItem::ToolCall { tool_call: existing } = &mut self.chat_items[idx] {
+                        // Merge: only update fields that have values in the new tool call
+                        existing.title = tool_call.title.clone();
+                        if tool_call.kind.is_some() {
+                            existing.kind = tool_call.kind.clone();
+                        }
+                        if tool_call.status.is_some() {
+                            existing.status = tool_call.status.clone();
+                        }
+                        if tool_call.raw_input.is_some() {
+                            existing.raw_input = tool_call.raw_input.clone();
+                        }
+                        if tool_call.raw_output.is_some() {
+                            existing.raw_output = tool_call.raw_output.clone();
+                        }
+                        if tool_call.content.is_some() {
+                            existing.content = tool_call.content.clone();
+                        }
+                        if tool_call.locations.is_some() {
+                            existing.locations = tool_call.locations.clone();
+                        }
+                        return SessionStateUpdate::ToolCallUpdated {
+                            tool_call: existing.clone(),
+                        };
+                    }
                 }
+
+                // New tool call - add it
                 let index = self.chat_items.len();
                 self.chat_items.push(ChatItem::ToolCall {
                     tool_call: tool_call.clone(),
