@@ -337,6 +337,10 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
     return messageId;
   }, []);
 
+  // Get connection status
+  const connectionStatus = useAgentStore((state) => state.connectionStatus);
+  const isConnected = connectionStatus === "connected";
+
   // Setup effect: fetch state and listen for updates
   useEffect(() => {
     currentSessionRef.current = sessionId;
@@ -345,6 +349,13 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
       setState(null);
       setError(null);
       setIsLoading(false);
+      return;
+    }
+
+    // Wait for connection before loading session
+    if (!isConnected) {
+      setIsLoading(true);
+      setError(null);
       return;
     }
 
@@ -408,7 +419,7 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
       unsubscribeSessionUpdate();
       unsubscribeStateUpdate();
     };
-  }, [sessionId, fetchSessionState, applyUpdate, applyStateUpdate]);
+  }, [sessionId, isConnected, fetchSessionState, applyUpdate, applyStateUpdate]);
 
   // Listen for reconnection events
   useEffect(() => {
