@@ -284,8 +284,8 @@ impl ModelConfig {
                 }
             }
             "bigmodel" => {
-                // BigModel doesn't have a specific model field
-                None
+                // BigModel uses Anthropic-compatible API
+                Some("claude-sonnet-4-5".to_string())
             }
             custom_id => {
                 // Custom provider
@@ -440,6 +440,8 @@ impl ModelConfig {
                     "ANTHROPIC_BASE_URL".to_string(),
                     "https://open.bigmodel.cn/api/anthropic".to_string(),
                 );
+                // Set default model for BigModel/Zhipu
+                env.insert("ANTHROPIC_MODEL".to_string(), "claude-sonnet-4-5".to_string());
                 if !p.auth_token.is_empty() {
                     env.insert("ANTHROPIC_AUTH_TOKEN".to_string(), p.auth_token.clone());
                 }
