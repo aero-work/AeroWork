@@ -166,6 +166,13 @@ impl SessionState {
                 self.handle_agent_message_chunk(content)
             }
             SessionUpdate::ToolCall(tool_call) => {
+                // Check if tool call already exists to avoid duplicates
+                if self.tool_calls_map.contains_key(&tool_call.tool_call_id) {
+                    // Already exists, treat as update instead
+                    return SessionStateUpdate::ToolCallUpdated {
+                        tool_call: tool_call.clone(),
+                    };
+                }
                 let index = self.chat_items.len();
                 self.chat_items.push(ChatItem::ToolCall {
                     tool_call: tool_call.clone(),
