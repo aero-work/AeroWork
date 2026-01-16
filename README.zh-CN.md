@@ -4,7 +4,6 @@
 
 ![主界面](./assets/main-window.webp)
 
-![设置页面](./assets/setting-page-demo.webp)
 
 ## 关于
 
@@ -16,7 +15,9 @@
 
 **协同** - 随时随地工作。桌面端启动，手机 PWA 远程监控。配合 [Tailscale](https://tailscale.com/) 实现安全远程访问 - 随时随地确认权限、查看任务状态、管理 Agent。
 
-**标准化** - 使用 [Agent Client Protocol (ACP)](https://github.com/anthropics/agent-client-protocol) 接入 Claude Code。未来计划支持 OpenCode、Gemini CLI 等更多 ACP 兼容的 Agent。
+<video src="./assets/desktop-and-mobile-work-together.mp4" autoplay loop muted playsinline width="100%"></video>
+
+**标准化** - 使用 [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) 接入 Claude Code。未来计划支持 OpenCode、Gemini CLI 等更多 ACP 兼容的 Agent。
 
 ## 功能亮点
 
@@ -59,37 +60,27 @@ bun run tauri build   # 桌面端
 bun run build         # 网页端
 ```
 
-## 模型提供商
+## 配置管理
 
-在 **设置 > 模型** 中配置。环境变量会在 Agent 启动时传递给子进程。
+强大的配置管理功能，可以管理 Claude Code 系统配置，配置模型/MCP/插件 - 比任何其他工具都好用的 Claude Code 配置管理器。
 
-| 提供商 | 配置项 |
-|--------|--------|
-| Default | 使用系统环境变量 |
-| Anthropic | API Key / Auth Token, Base URL, 模型选择 |
-| Amazon Bedrock | Bearer Token, 区域, 模型选择 |
-| BigModel / 智谱 | Auth Token |
-| MiniMax | Auth Token, 模型选择 |
-| Moonshot AI / Kimi | Auth Token, 模型选择 |
-| 自定义 | Base URL + API Key / Auth Token |
+![设置页面](./assets/setting-page-demo.webp)
 
-配置文件位置: `~/.config/aerowork/models.json`
-
-## 配置文件
-
-所有配置存储在 `~/.config/aerowork/`:
+配置文件存储在 `~/.config/aerowork/`:
 
 | 文件 | 用途 |
 |------|------|
 | `config.json` | 通用设置 |
 | `models.json` | 模型提供商配置 |
 | `mcp.json` | MCP 服务器配置 |
+| `permission.json` | 权限配置 |
 
 ## 技术栈
 
-- **前端:** React 18, TypeScript, Tailwind CSS v4, shadcn/ui, Zustand
+- **前端:** React, TypeScript, Tailwind CSS v4, shadcn/ui, Zustand
 - **后端:** Tauri 2.0, Rust, Axum
 - **协议:** Agent Client Protocol (ACP)
+- **Agent:** Claude Agent SDK
 
 ## 许可证
 

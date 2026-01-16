@@ -1,10 +1,11 @@
 # AeroWork
 
+[中文](./README.zh-CN.md)
+
 An AI agent for everyone from everywhere.
 
 ![Main Window](./assets/main-window.webp)
 
-![Settings Page](./assets/setting-page-demo.webp)
 
 ## About
 
@@ -18,7 +19,7 @@ Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview
 
 <video src="./assets/desktop-and-mobile-work-together.mp4" autoplay loop muted playsinline width="100%"></video>
 
-**Standardization** - Uses [Agent Client Protocol (ACP)](https://github.com/anthropics/agent-client-protocol) for Claude Code integration. Future plans include support for OpenCode, Gemini CLI, and other ACP-compatible agents.
+**Standardization** - Uses [Agent Client Protocol (ACP)](https://github.com/agentclientprotocol/agent-client-protocol) for Claude Code integration. Future plans include support for OpenCode, Gemini CLI, and other ACP-compatible agents.
 
 ## Highlights
 
@@ -61,37 +62,27 @@ bun run tauri build   # Desktop
 bun run build         # Web
 ```
 
-## Model Providers
-
-Configure in **Settings > Models**. Environment variables are passed to the agent process at startup.
-
-| Provider | Configuration |
-|----------|---------------|
-| Default | Uses system environment variables |
-| Anthropic | API Key / Auth Token, Base URL, Model selection |
-| Amazon Bedrock | Bearer Token, Region, Model selection |
-| BigModel / Zhipu | Auth Token |
-| MiniMax | Auth Token, Model selection |
-| Moonshot AI / Kimi | Auth Token, Model selection |
-| Custom | Base URL + API Key / Auth Token |
-
-Config stored in: `~/.config/aerowork/models.json`
-
 ## Configuration
 
-All config files are stored in `~/.config/aerowork/`:
+Featuring powerful configuration management capabilities, it can manage Claude Code system configurations, configure models/MCP/Plugins - a Claude Code configuration manager that's better than any other tool.
+
+![Settings Page](./assets/setting-page-demo.webp)
+
+Additional config files are stored in `~/.config/aerowork/`:
 
 | File | Purpose |
 |------|---------|
 | `config.json` | General settings |
 | `models.json` | Model provider configuration |
 | `mcp.json` | MCP server configuration |
+| `permission.json` | Permission configuration |
 
 ## Tech Stack
 
-- **Frontend:** React 18, TypeScript, Tailwind CSS v4, shadcn/ui, Zustand
+- **Frontend:** React, TypeScript, Tailwind CSS v4, shadcn/ui, Zustand
 - **Backend:** Tauri 2.0, Rust, Axum
 - **Protocol:** Agent Client Protocol (ACP)
+- **Agent:** Claude Agent SDK
 
 ## License
 
