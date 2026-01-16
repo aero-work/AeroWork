@@ -187,6 +187,16 @@ class AgentAPI {
         console.warn("Failed to get server info:", e);
       }
 
+      // Load recent projects from server
+      try {
+        const response = await transport.request<{ projects: Array<{ path: string; name: string; lastOpened: number }> }>("get_recent_projects");
+        console.log("Recent projects from server:", response.projects);
+        const fileStore = useFileStore.getState();
+        fileStore.setRecentProjects(response.projects);
+      } catch (e) {
+        console.warn("Failed to load recent projects:", e);
+      }
+
       agentStore.setConnectionStatus("connected");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to connect";
@@ -395,6 +405,63 @@ class AgentAPI {
   async setSessionMode(sessionId: SessionId, modeId: string): Promise<void> {
     const transport = getTransport();
     await transport.setSessionMode(sessionId, modeId);
+  }
+
+  /**
+   * Add a project to recent projects (syncs with server)
+   */
+  async addRecentProject(path: string, name?: string): Promise<void> {
+    const transport = getTransport();
+    const fileStore = useFileStore.getState();
+
+    try {
+      const response = await transport.request<{ projects: Array<{ path: string; name: string; lastOpened: number }> }>(
+        "add_recent_project",
+        { path, name }
+      );
+      fileStore.setRecentProjects(response.projects);
+    } catch (e) {
+      console.warn("Failed to sync recent project to server:", e);
+      // Fall back to local-only update
+      fileStore.addRecentProject(path, name);
+    }
+  }
+
+  /**
+   * Remove a project from recent projects (syncs with server)
+   */
+  async removeRecentProject(path: string): Promise<void> {
+    const transport = getTransport();
+    const fileStore = useFileStore.getState();
+
+    try {
+      const response = await transport.request<{ projects: Array<{ path: string; name: string; lastOpened: number }> }>(
+        "remove_recent_project",
+        { path }
+      );
+      fileStore.setRecentProjects(response.projects);
+    } catch (e) {
+      console.warn("Failed to sync recent project removal to server:", e);
+      // Fall back to local-only update
+      fileStore.removeRecentProject(path);
+    }
+  }
+
+  /**
+   * Clear all recent projects (syncs with server)
+   */
+  async clearRecentProjects(): Promise<void> {
+    const transport = getTransport();
+    const fileStore = useFileStore.getState();
+
+    try {
+      await transport.request("clear_recent_projects");
+      fileStore.setRecentProjects([]);
+    } catch (e) {
+      console.warn("Failed to sync recent projects clear to server:", e);
+      // Fall back to local-only update
+      fileStore.clearRecentProjects();
+    }
   }
 
   // Keep old method name for backward compatibility

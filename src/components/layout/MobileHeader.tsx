@@ -67,7 +67,7 @@ export function MobileHeader() {
 
   const openFiles = useFileStore((state) => state.openFiles);
   const markFileSaved = useFileStore((state) => state.markFileSaved);
-  const addRecentProject = useFileStore((state) => state.addRecentProject);
+  const setWorkingDir = useFileStore((state) => state.setWorkingDir);
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
 
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
@@ -237,10 +237,10 @@ export function MobileHeader() {
   };
 
   // Handle project selection from mobile selector
-  // addRecentProject already sets currentWorkingDir internally
+  // MobileProjectSelector already syncs to server and calls setWorkingDir
   const handleProjectSelect = useCallback((path: string) => {
-    addRecentProject(path);
-  }, [addRecentProject]);
+    setWorkingDir(path);
+  }, [setWorkingDir]);
 
   return (
     <>

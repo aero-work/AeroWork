@@ -743,6 +743,37 @@ async fn dispatch_method(
             }))
         }
 
+        // Recent projects commands
+        "get_recent_projects" => {
+            let projects = load_recent_projects()?;
+            Ok(serde_json::json!({ "projects": projects }))
+        }
+
+        "add_recent_project" => {
+            let path = params.get("path")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing path parameter")?;
+            let name = params.get("name")
+                .and_then(|v| v.as_str());
+            add_recent_project(path, name)?;
+            let projects = load_recent_projects()?;
+            Ok(serde_json::json!({ "projects": projects }))
+        }
+
+        "remove_recent_project" => {
+            let path = params.get("path")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing path parameter")?;
+            remove_recent_project(path)?;
+            let projects = load_recent_projects()?;
+            Ok(serde_json::json!({ "projects": projects }))
+        }
+
+        "clear_recent_projects" => {
+            clear_recent_projects()?;
+            Ok(serde_json::json!({ "projects": [] }))
+        }
+
         _ => Err(format!("Unknown method: {}", method)),
     }
 }
@@ -1470,4 +1501,122 @@ fn uninstall_plugin_handler(plugin_key: &str) -> Result<UninstallPluginResponse,
 
 fn toggle_marketplace_handler(name: &str, enabled: bool) -> Result<MarketplaceResponse, String> {
     PluginManager::toggle_marketplace(name, enabled)
+}
+
+// ===== Recent Projects Persistence =====
+
+const MAX_RECENT_PROJECTS: usize = 20;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RecentProject {
+    path: String,
+    name: String,
+    #[serde(rename = "lastOpened")]
+    last_opened: u64,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct RecentProjectsConfig {
+    projects: Vec<RecentProject>,
+}
+
+/// Get the config directory path (~/.config/aerowork/)
+fn get_config_dir() -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    let config_dir = home.join(".config").join("aerowork");
+
+    // Create directory if it doesn't exist
+    if !config_dir.exists() {
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    }
+
+    Ok(config_dir)
+}
+
+/// Get the recent projects config file path
+fn get_recent_projects_path() -> Result<std::path::PathBuf, String> {
+    Ok(get_config_dir()?.join("recent-projects.json"))
+}
+
+/// Load recent projects from config file
+fn load_recent_projects() -> Result<Vec<RecentProject>, String> {
+    let config_path = get_recent_projects_path()?;
+
+    if !config_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = std::fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read recent projects: {}", e))?;
+
+    let config: RecentProjectsConfig = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse recent projects: {}", e))?;
+
+    Ok(config.projects)
+}
+
+/// Save recent projects to config file
+fn save_recent_projects(projects: &[RecentProject]) -> Result<(), String> {
+    let config_path = get_recent_projects_path()?;
+    let config = RecentProjectsConfig {
+        projects: projects.to_vec(),
+    };
+
+    let content = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize recent projects: {}", e))?;
+
+    std::fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write recent projects: {}", e))?;
+
+    Ok(())
+}
+
+/// Add a project to recent projects list
+fn add_recent_project(path: &str, name: Option<&str>) -> Result<(), String> {
+    let mut projects = load_recent_projects().unwrap_or_default();
+
+    // Remove existing entry with same path
+    projects.retain(|p| p.path != path);
+
+    // Create new entry
+    let project_name = name
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            std::path::Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.to_string())
+        });
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    // Insert at the beginning
+    projects.insert(0, RecentProject {
+        path: path.to_string(),
+        name: project_name,
+        last_opened: now,
+    });
+
+    // Limit to max projects
+    if projects.len() > MAX_RECENT_PROJECTS {
+        projects.truncate(MAX_RECENT_PROJECTS);
+    }
+
+    save_recent_projects(&projects)
+}
+
+/// Remove a project from recent projects list
+fn remove_recent_project(path: &str) -> Result<(), String> {
+    let mut projects = load_recent_projects().unwrap_or_default();
+    projects.retain(|p| p.path != path);
+    save_recent_projects(&projects)
+}
+
+/// Clear all recent projects
+fn clear_recent_projects() -> Result<(), String> {
+    save_recent_projects(&[])
 }

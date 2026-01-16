@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFileStore, type RecentProject } from "@/stores/fileStore";
 import { useAgentStore } from "@/stores/agentStore";
+import { agentAPI } from "@/services/api";
 import * as fileService from "@/services/fileService";
 import {
   FolderOpen,
@@ -53,8 +54,7 @@ export function ProjectSelector({ onSelect, trigger }: ProjectSelectorProps) {
   const {
     currentWorkingDir,
     recentProjects,
-    addRecentProject,
-    removeRecentProject,
+    setWorkingDir,
     serverHome,
   } = useFileStore();
 
@@ -62,12 +62,15 @@ export function ProjectSelector({ onSelect, trigger }: ProjectSelectorProps) {
   const isConnected = connectionStatus === "connected";
 
   const handleSelectProject = useCallback(
-    (path: string) => {
-      addRecentProject(path);
+    async (path: string) => {
+      // Sync to server (also updates local state)
+      await agentAPI.addRecentProject(path);
+      // Set as current working directory
+      setWorkingDir(path);
       onSelect(path);
       setOpen(false);
     },
-    [addRecentProject, onSelect]
+    [setWorkingDir, onSelect]
   );
 
   const handleCustomPath = useCallback(() => {
@@ -78,11 +81,11 @@ export function ProjectSelector({ onSelect, trigger }: ProjectSelectorProps) {
   }, [customPath, handleSelectProject]);
 
   const handleRemoveRecent = useCallback(
-    (e: React.MouseEvent, path: string) => {
+    async (e: React.MouseEvent, path: string) => {
       e.stopPropagation();
-      removeRecentProject(path);
+      await agentAPI.removeRecentProject(path);
     },
-    [removeRecentProject]
+    []
   );
 
   const formatPath = (path: string) => {

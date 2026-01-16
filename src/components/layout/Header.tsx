@@ -23,7 +23,7 @@ const statusConfig: Record<
 export function Header() {
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
-  const addRecentProject = useFileStore((state) => state.addRecentProject);
+  const setWorkingDir = useFileStore((state) => state.setWorkingDir);
 
   const { icon: StatusIcon, className } = statusConfig[connectionStatus];
 
@@ -34,9 +34,9 @@ export function Header() {
       </h1>
 
       <div className="flex items-center gap-2">
-        {/* Project Selector */}
+        {/* Project Selector - ProjectSelector handles server sync internally */}
         <ProjectSelector
-          onSelect={addRecentProject}
+          onSelect={setWorkingDir}
           trigger={
             <Button variant="outline" size="sm" className="gap-2">
               <FolderOpen className="w-4 h-4" />

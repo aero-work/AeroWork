@@ -67,6 +67,7 @@ interface FileActions {
   addRecentProject: (path: string, name?: string) => void;
   removeRecentProject: (path: string) => void;
   clearRecentProjects: () => void;
+  setRecentProjects: (projects: RecentProject[]) => void;
   // Server paths
   setServerPaths: (cwd: string, home: string) => void;
   // File tree
@@ -170,6 +171,12 @@ export const useFileStore = create<FileState & FileActions>()(
       clearRecentProjects: () => {
         set((state) => {
           state.recentProjects = [];
+        });
+      },
+
+      setRecentProjects: (projects) => {
+        set((state) => {
+          state.recentProjects = projects;
         });
       },
 
