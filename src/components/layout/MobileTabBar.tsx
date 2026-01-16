@@ -1,21 +1,23 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useMobileNavStore, type MobileView } from "@/stores/mobileNavStore";
 import { MessageSquare, FolderTree, Terminal, Settings } from "lucide-react";
 
 interface TabItem {
   id: MobileView;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const TAB_ITEMS: TabItem[] = [
-  { id: "session-list", label: "Chat", icon: MessageSquare },
-  { id: "files", label: "Files", icon: FolderTree },
-  { id: "terminal", label: "Terminal", icon: Terminal },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "session-list", labelKey: "tabs.chat", icon: MessageSquare },
+  { id: "files", labelKey: "tabs.files", icon: FolderTree },
+  { id: "terminal", labelKey: "tabs.terminal", icon: Terminal },
+  { id: "settings", labelKey: "tabs.settings", icon: Settings },
 ];
 
 export function MobileTabBar() {
+  const { t } = useTranslation();
   const currentView = useMobileNavStore((state) => state.currentView);
   const showTabBar = useMobileNavStore((state) => state.showTabBar);
   const setView = useMobileNavStore((state) => state.setView);
@@ -54,7 +56,7 @@ export function MobileTabBar() {
               )}
             >
               <Icon className="w-6 h-6" />
-              <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              <span className="text-[10px] font-medium leading-none">{t(item.labelKey)}</span>
             </button>
           );
         })}

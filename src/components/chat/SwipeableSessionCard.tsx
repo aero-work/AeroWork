@@ -1,7 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { SessionInfo, SessionStatus } from "@/types/acp";
-import { MessageSquare, Clock, Trash2, Square, Loader2, Check } from "lucide-react";
+import { useSessionData } from "@/hooks/useSessionData";
+import { MessageSquare, Clock, Trash2, Square, Loader2, Check, AlertTriangle } from "lucide-react";
 
 /** Get status badge styles based on session status */
 function getStatusBadgeStyles(status: SessionStatus): string {
@@ -18,18 +20,18 @@ function getStatusBadgeStyles(status: SessionStatus): string {
   }
 }
 
-/** Get status label text */
-function getStatusLabel(status: SessionStatus): string {
+/** Get status label translation key */
+function getStatusLabelKey(status: SessionStatus): string {
   switch (status) {
     case "running":
-      return "Running";
+      return "session.status.running";
     case "pending":
-      return "Pending";
+      return "session.status.pending";
     case "idle":
-      return "Ready";
+      return "session.status.ready";
     case "stopped":
     default:
-      return "Stopped";
+      return "session.status.stopped";
   }
 }
 
@@ -41,7 +43,7 @@ interface SwipeableSessionCardProps {
   onStop?: () => Promise<void> | void;
 }
 
-function formatRelativeTime(timestamp: string | number): string {
+function formatRelativeTime(timestamp: string | number, t: (key: string, options?: Record<string, unknown>) => string): string {
   const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -49,11 +51,11 @@ function formatRelativeTime(timestamp: string | number): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t("time.justNow");
+  if (diffMins < 60) return t("time.minutesAgo", { count: diffMins });
+  if (diffHours < 24) return t("time.hoursAgo", { count: diffHours });
+  if (diffDays === 1) return t("time.yesterday");
+  if (diffDays < 7) return t("time.daysAgo", { count: diffDays });
 
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
@@ -78,11 +80,16 @@ export function SwipeableSessionCard({
   onDelete,
   onStop,
 }: SwipeableSessionCardProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [translateX, setTranslateX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [actionState, setActionState] = useState<"idle" | "loading" | "success">("idle");
+
+  // Get Yolo mode from session state (only for active sessions)
+  const { state: sessionState } = useSessionData(session.active ? session.id : null);
+  const isYoloMode = sessionState?.dangerousMode ?? false;
 
   // Touch tracking
   const startX = useRef(0);
@@ -91,8 +98,8 @@ export function SwipeableSessionCard({
   const isHorizontalSwipe = useRef<boolean | null>(null);
 
   // Session title: use first user message, summary, or fallback
-  const sessionTitle = session.lastUserMessage || session.summary || "New Conversation";
-  const timeStr = session.lastActivity ? formatRelativeTime(session.lastActivity) : "";
+  const sessionTitle = session.lastUserMessage || session.summary || t("session.conversation");
+  const timeStr = session.lastActivity ? formatRelativeTime(session.lastActivity, t) : "";
 
   // Reset state when clicking outside
   useEffect(() => {
@@ -345,15 +352,22 @@ export function SwipeableSessionCard({
                   getStatusBadgeStyles(session.status)
                 )}
               >
-                {getStatusLabel(session.status)}
+                {t(getStatusLabelKey(session.status))}
               </span>
+              {/* Yolo mode indicator */}
+              {isYoloMode && (
+                <span className="flex items-center gap-0.5 text-yellow-500 font-bold">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span style={{ fontFamily: "Quantico, sans-serif", fontStyle: "italic" }}>Yolo</span>
+                </span>
+              )}
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {timeStr}
               </span>
               {session.messageCount > 0 && (
                 <span className="bg-muted px-1.5 py-0.5 rounded-full">
-                  {session.messageCount} msgs
+                  {t("session.messages", { count: session.messageCount })}
                 </span>
               )}
             </div>

@@ -177,6 +177,25 @@ impl WebSocketServer {
             let state_clone = state.clone();
             tokio::spawn(async move {
                 while let Some(request) = rx.recv().await {
+                    // Check if session has dangerous mode enabled - auto-approve if so
+                    if state_clone.session_state_manager.is_dangerous_mode(&request.session_id) {
+                        info!("Dangerous mode enabled for session {}, auto-approving permission", request.session_id);
+                        // Find allow option and auto-respond
+                        if let Some(allow_option) = request.options.iter().find(|opt| {
+                            matches!(opt.kind, crate::acp::PermissionOptionKind::AllowOnce | crate::acp::PermissionOptionKind::AllowAlways)
+                        }) {
+                            let outcome = PermissionOutcome::Selected {
+                                option_id: allow_option.option_id.clone(),
+                            };
+                            // Respond to the permission request
+                            let client_guard = state_clone.client.read().await;
+                            if let Some(ref client) = *client_guard {
+                                let _ = client.respond_permission(request.request_id.clone(), outcome).await;
+                            }
+                            continue; // Skip forwarding to clients
+                        }
+                    }
+
                     // Save the pending permission request to session state
                     state_clone.session_state_manager.set_pending_permission(
                         &request.session_id,
@@ -403,6 +422,42 @@ async fn dispatch_method(
         }
         "get_client_id" => {
             Ok(serde_json::json!({ "clientId": client_state.client_id }))
+        }
+        "set_dangerous_mode" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let enabled = params.get("enabled")
+                .and_then(|v| v.as_bool())
+                .ok_or("Missing enabled parameter")?;
+            let success = state.session_state_manager.set_dangerous_mode(&session_id.to_string(), enabled);
+
+            // Broadcast update to all WebSocket clients
+            if success {
+                let msg = JsonRpcNotification {
+                    jsonrpc: "2.0".to_string(),
+                    method: "session/state_update".to_string(),
+                    params: serde_json::json!({
+                        "sessionId": session_id,
+                        "update": {
+                            "updateType": "dangerous_mode_updated",
+                            "dangerousMode": enabled
+                        }
+                    }),
+                };
+                if let Ok(json) = serde_json::to_string(&msg) {
+                    let _ = event_tx.send(json);
+                }
+            }
+
+            Ok(serde_json::json!({ "success": success, "dangerousMode": enabled }))
+        }
+        "get_dangerous_mode" => {
+            let session_id = params.get("sessionId")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing sessionId parameter")?;
+            let enabled = state.session_state_manager.is_dangerous_mode(&session_id.to_string());
+            Ok(serde_json::json!({ "dangerousMode": enabled }))
         }
 
         // Agent commands
@@ -1300,13 +1355,16 @@ async fn stop_session_handler(
 ) -> Result<(), String> {
     info!("WebSocket: Stopping session {}", session_id);
 
+    // Get session info before we remove it (for cwd filter)
+    let session_cwd = state.session_registry.get_session_info(session_id)
+        .map(|info| info.cwd.clone());
+
     // Check current session status
-    let current_status = state.session_registry.get_session_info(session_id)
-        .map(|info| info.status.clone());
+    let current_status = state.session_registry.get_status(&session_id.to_string());
 
     // If session is running or pending, cancel it first
-    if let Some(status) = &current_status {
-        if *status == crate::core::SessionStatus::Running || *status == crate::core::SessionStatus::Pending {
+    if let Some(status) = current_status {
+        if status == crate::core::SessionStatus::Running || status == crate::core::SessionStatus::Pending {
             info!("Session {} is {:?}, cancelling first...", session_id, status);
             let manager = AgentManager::new(state.client.clone());
             // Ignore cancel errors (session might already be done)
@@ -1317,11 +1375,11 @@ async fn stop_session_handler(
     // Remove session from memory (SessionStateManager)
     state.session_state_manager.remove_session(&session_id.to_string());
 
-    // Update session status to Stopped
-    state.session_registry.update_status(&session_id.to_string(), crate::core::SessionStatus::Stopped);
+    // Unregister from active sessions (this sets active=false in list_sessions output)
+    state.session_registry.unregister_session(&session_id.to_string());
 
-    // Broadcast sessions update to all clients
-    let sessions = state.session_registry.list_sessions(None, 50, 0);
+    // Broadcast sessions update to all clients (filtered by cwd if available)
+    let sessions = state.session_registry.list_sessions(session_cwd.as_deref(), 50, 0);
     let notification = JsonRpcNotification {
         jsonrpc: "2.0".to_string(),
         method: "sessions/updated".to_string(),

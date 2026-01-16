@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SwipeableSessionCard } from "@/components/chat/SwipeableSessionCard";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +32,7 @@ function sortSessions(sessions: SessionInfo[]): SessionInfo[] {
 }
 
 export function MobileSessionList() {
+  const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const availableSessions = useSessionStore((state) => state.availableSessions);
   const availableSessionsLoading = useSessionStore((state) => state.availableSessionsLoading);
@@ -116,13 +118,13 @@ export function MobileSessionList() {
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground px-6">
         <Bot className="w-16 h-16 opacity-20 mb-4" />
         <h2 className="text-xl font-semibold text-foreground mb-2">
-          Welcome to <span style={{ fontFamily: 'Quantico, sans-serif', fontStyle: 'italic' }}>Aero Work</span>
+          {t("session.welcome.title")}
         </h2>
         <p className="text-sm text-center mb-4">
-          Connecting to the AI agent...
+          {t("session.welcome.connectMessage")}
         </p>
         <p className="text-xs text-center text-muted-foreground">
-          Check <strong>Settings</strong> if connection fails.
+          {t("session.welcome.checkSettings")}
         </p>
       </div>
     );
@@ -134,10 +136,10 @@ export function MobileSessionList() {
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground px-6">
         <FolderOpen className="w-16 h-16 opacity-20 mb-4" />
         <h2 className="text-lg font-medium text-foreground mb-2">
-          Select a Project
+          {t("session.selectProject.title")}
         </h2>
         <p className="text-sm text-center">
-          Tap the <strong>Open</strong> button in the header to select a project folder.
+          {t("session.selectProject.message")}
         </p>
       </div>
     );
@@ -156,12 +158,12 @@ export function MobileSessionList() {
           {isCreating ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Creating...
+              {t("common.loading")}
             </>
           ) : (
             <>
               <Plus className="w-5 h-5 mr-2" />
-              New Conversation
+              {t("session.newConversation")}
             </>
           )}
         </Button>
@@ -172,16 +174,16 @@ export function MobileSessionList() {
         {availableSessionsLoading && sortedSessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin mb-2" />
-            <p className="text-sm">Loading sessions...</p>
+            <p className="text-sm">{t("session.loadingSessions")}</p>
           </div>
         ) : sortedSessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground px-6">
             <MessageSquare className="w-12 h-12 opacity-20 mb-4" />
             <h3 className="text-base font-medium text-foreground mb-2">
-              No Conversations Yet
+              {t("session.noConversations")}
             </h3>
             <p className="text-sm text-center">
-              Tap the button above to start your first conversation.
+              {t("session.tapToStart")}
             </p>
           </div>
         ) : (

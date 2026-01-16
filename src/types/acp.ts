@@ -327,6 +327,8 @@ export interface SessionState {
   availableCommands?: AvailableCommand[];
   /** Pending permission request waiting for user response */
   pendingPermission?: PermissionRequest | null;
+  /** Dangerous mode - auto-approve all tool calls for this session */
+  dangerousMode?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -344,4 +346,5 @@ export type SessionStateUpdate =
   | { updateType: "available_commands_updated"; commands: AvailableCommand[] }
   | { updateType: "current_mode_updated"; modeId: SessionModeId }
   | { updateType: "full_state"; state: SessionState }
+  | { updateType: "dangerous_mode_updated"; dangerousMode: boolean }
   | { updateType: "noop" };

@@ -56,6 +56,9 @@ pub struct SessionState {
     pub available_commands: Option<Vec<AvailableCommand>>,
     /// Pending permission request waiting for user response
     pub pending_permission: Option<PermissionRequest>,
+    /// Dangerous mode - auto-approve all tool calls for this session
+    #[serde(default)]
+    pub dangerous_mode: bool,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -73,9 +76,21 @@ impl SessionState {
             models: None,
             available_commands: None,
             pending_permission: None,
+            dangerous_mode: false,
             created_at: now,
             updated_at: now,
         }
+    }
+
+    /// Set dangerous mode for this session
+    pub fn set_dangerous_mode(&mut self, enabled: bool) {
+        self.dangerous_mode = enabled;
+        self.updated_at = Utc::now().timestamp_millis();
+    }
+
+    /// Check if dangerous mode is enabled
+    pub fn is_dangerous_mode(&self) -> bool {
+        self.dangerous_mode
     }
 
     /// Set pending permission request for this session
@@ -314,6 +329,9 @@ pub enum SessionStateUpdate {
     CurrentModeUpdated { mode_id: SessionModeId },
     /// Full state sync (for new subscribers)
     FullState { state: Box<SessionState> },
+    /// Dangerous mode was updated
+    #[serde(rename_all = "camelCase")]
+    DangerousModeUpdated { dangerous_mode: bool },
     /// No operation (used for unhandled updates)
     Noop,
 }

@@ -47,9 +47,9 @@
     "tapToStart": "点击上方按钮开始您的第一个对话",
     "loadingSessions": "加载会话中...",
     "conversation": "对话",
-    "dangerousMode": "危险模式",
-    "dangerousModeDescription": "自动通过所有工具调用（谨慎使用）",
-    "dangerousModeEnabled": "危险",
+    "yoloMode": "启用 Yolo",
+    "yoloModeDescription": "自动通过所有工具调用（谨慎使用）",
+    "yoloModeEnabled": "Yolo 已开启",
     "status": {
       "ready": "就绪",
       "running": "运行中",
@@ -186,6 +186,7 @@
     "startConversation": "开始对话",
     "typeMessage": "在下方输入消息开始",
     "placeholder": "输入您的消息...",
+    "connectToChat": "连接 Agent 以开始对话...",
     "send": "发送",
     "stop": "停止"
   },
@@ -221,7 +222,10 @@
   "sidebar": {
     "sessions": "会话",
     "recentProjects": "最近项目",
-    "noRecentProjects": "暂无最近项目"
+    "noRecentProjects": "暂无最近项目",
+    "noSessions": "暂无会话",
+    "selectProjectFirst": "请先选择项目",
+    "connectToStart": "请先连接"
   },
   "connection": {
     "connect": "连接",

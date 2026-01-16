@@ -30,20 +30,25 @@ function ResizablePanel({
   return <Panel {...props} />
 }
 
+interface ResizableHandleProps extends React.ComponentProps<typeof Separator> {
+  orientation?: "horizontal" | "vertical"
+}
+
 function ResizableHandle({
   className,
+  orientation = "horizontal",
   ...props
-}: React.ComponentProps<typeof Separator>) {
+}: ResizableHandleProps) {
   return (
     <Separator
       className={cn(
         // Base styles
         "bg-border relative shrink-0 select-none touch-none transition-colors",
         "hover:bg-primary/40 active:bg-primary/60",
-        // Horizontal (default): vertical line between left/right panels
-        "w-1 cursor-col-resize",
-        // Vertical: horizontal line between top/bottom panels
-        "data-[orientation=vertical]:h-1 data-[orientation=vertical]:w-full data-[orientation=vertical]:cursor-row-resize",
+        // Direction-specific styles
+        orientation === "vertical"
+          ? "h-1 w-full cursor-row-resize"
+          : "w-1 cursor-col-resize",
         className
       )}
       {...props}

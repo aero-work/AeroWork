@@ -47,9 +47,9 @@
     "tapToStart": "Tap the button above to start your first conversation.",
     "loadingSessions": "Loading sessions...",
     "conversation": "Conversation",
-    "dangerousMode": "Dangerous Mode",
-    "dangerousModeDescription": "Auto-approve all tool calls (use with caution)",
-    "dangerousModeEnabled": "DANGEROUS",
+    "yoloMode": "Enable Yolo",
+    "yoloModeDescription": "Auto-approve all tool calls (use with caution)",
+    "yoloModeEnabled": "Yolo ON",
     "status": {
       "ready": "Ready",
       "running": "Running",
@@ -186,6 +186,7 @@
     "startConversation": "Start a conversation",
     "typeMessage": "Type a message below to begin",
     "placeholder": "Type your message...",
+    "connectToChat": "Connect to an agent to start chatting...",
     "send": "Send",
     "stop": "Stop"
   },
@@ -221,7 +222,10 @@
   "sidebar": {
     "sessions": "Sessions",
     "recentProjects": "Recent Projects",
-    "noRecentProjects": "No recent projects"
+    "noRecentProjects": "No recent projects",
+    "noSessions": "No sessions yet",
+    "selectProjectFirst": "Select a project first",
+    "connectToStart": "Connect to start"
   },
   "connection": {
     "connect": "Connect",

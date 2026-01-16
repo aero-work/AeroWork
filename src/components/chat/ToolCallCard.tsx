@@ -80,7 +80,9 @@ export function ToolCallCard({
 
   // For AskUserQuestion, render the interactive card
   if (isAskUserQuestion && askUserQuestionInput && onAskUserQuestionSubmit) {
-    const isAnswered = status === "completed";
+    // AskUserQuestion is only "answered" when there's actual output (user responded)
+    // Just having status=completed from permission approval doesn't mean user answered
+    const isAnswered = status === "completed" && toolCall.rawOutput != null;
     return (
       <AskUserQuestionCard
         toolCallId={toolCall.toolCallId}

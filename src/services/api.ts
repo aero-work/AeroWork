@@ -15,10 +15,10 @@
 import { getTransport } from "./transport";
 import type { ServerInfo } from "./transport";
 import { WebSocketTransport } from "./transport/websocket";
-import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useSettingsStore, type PermissionRule } from "@/stores/settingsStore";
 import { useFileStore } from "@/stores/fileStore";
+import { useSessionStore } from "@/stores/sessionStore";
 import type {
   SessionId,
   SessionInfo,
@@ -91,23 +91,12 @@ class AgentAPI {
 
   /**
    * Global permission handler - handles all permission requests from any session
+   * Note: Dangerous mode auto-approval is now handled on the server side
    */
   private handleGlobalPermissionRequest = (
     request: PermissionRequest
   ): Promise<PermissionOutcome> => {
     const agentStore = useAgentStore.getState();
-    const sessionStore = useSessionStore.getState();
-
-    // Check if session is in dangerous mode (auto-approve all)
-    if (request.sessionId && sessionStore.dangerousModeSessions.has(request.sessionId)) {
-      const allowOption = request.options.find(
-        (opt) => opt.kind === "allow_once" || opt.kind === "allow_always"
-      );
-      if (allowOption) {
-        console.log("[DangerousMode] Auto-approving tool call for session:", request.sessionId);
-        return Promise.resolve({ outcome: "selected", optionId: allowOption.optionId });
-      }
-    }
 
     // Check permission rules first (synchronous, uses settings store)
     const autoOutcome = checkPermissionRules(request);
@@ -405,6 +394,30 @@ class AgentAPI {
   async stopSession(sessionId: SessionId): Promise<void> {
     const transport = getTransport();
     await transport.request("stop_session", { sessionId });
+  }
+
+  /**
+   * Set dangerous mode for a session (auto-approve all tool calls)
+   */
+  async setDangerousMode(sessionId: SessionId, enabled: boolean): Promise<boolean> {
+    const transport = getTransport();
+    const result = await transport.request<{ success: boolean; dangerousMode: boolean }>(
+      "set_dangerous_mode",
+      { sessionId, enabled }
+    );
+    return result.dangerousMode;
+  }
+
+  /**
+   * Get dangerous mode status for a session
+   */
+  async getDangerousMode(sessionId: SessionId): Promise<boolean> {
+    const transport = getTransport();
+    const result = await transport.request<{ dangerousMode: boolean }>(
+      "get_dangerous_mode",
+      { sessionId }
+    );
+    return result.dangerousMode;
   }
 
   /**

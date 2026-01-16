@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { Message, ChatItem } from "@/types/acp";
@@ -23,6 +24,7 @@ export function MessageList({
   onAskUserQuestionSubmit,
   askUserQuestionSubmitting,
 }: MessageListProps) {
+  const { t } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -110,8 +112,8 @@ export function MessageList({
           {chatItems.length === 0 && !isLoading && (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <Bot className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-lg">Start a conversation</p>
-              <p className="text-sm">Type a message below to begin</p>
+              <p className="text-lg">{t("chat.startConversation")}</p>
+              <p className="text-sm">{t("chat.typeMessage")}</p>
             </div>
           )}
 

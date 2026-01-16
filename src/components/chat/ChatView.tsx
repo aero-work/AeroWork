@@ -1,13 +1,16 @@
 import { useCallback, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { TodoPanel } from "./TodoPanel";
+import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useSessionData } from "@/hooks/useSessionData";
 import { agentAPI } from "@/services/api";
-import { Bot, FolderOpen, MessageSquare, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Bot, FolderOpen, MessageSquare, Loader2, AlertTriangle } from "lucide-react";
 import type { ChatItem, TodoWriteInput, TodoItem } from "@/types/acp";
 
 // Extract the latest TodoWrite todos from chat items
@@ -26,6 +29,8 @@ function extractLatestTodos(chatItems: ChatItem[]): TodoItem[] {
 }
 
 export function ChatView() {
+  const { t } = useTranslation();
+
   // UI state from stores
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const isPromptLoading = useSessionStore((state) => state.isLoading);
@@ -42,6 +47,17 @@ export function ChatView() {
 
   const isConnected = connectionStatus === "connected";
   const hasSession = !!activeSessionId;
+  const isYoloMode = sessionState?.dangerousMode ?? false;
+
+  // Toggle Yolo mode
+  const handleToggleYoloMode = useCallback(async () => {
+    if (!activeSessionId) return;
+    try {
+      await agentAPI.setDangerousMode(activeSessionId, !isYoloMode);
+    } catch (error) {
+      console.error("Failed to toggle Yolo mode:", error);
+    }
+  }, [activeSessionId, isYoloMode]);
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -181,7 +197,23 @@ export function ChatView() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Yolo mode toggle - floating in top right corner */}
+      <Button
+        variant={isYoloMode ? "default" : "ghost"}
+        size="sm"
+        onClick={handleToggleYoloMode}
+        className={cn(
+          "absolute top-2 right-2 z-10 gap-1.5 opacity-70 hover:opacity-100 transition-opacity",
+          isYoloMode && "bg-yellow-500 hover:bg-yellow-600 text-black opacity-100"
+        )}
+      >
+        <AlertTriangle className="w-4 h-4" />
+        <span style={{ fontFamily: "Quantico, sans-serif", fontStyle: "italic" }}>
+          {isYoloMode ? t("session.yoloModeEnabled") : t("session.yoloMode")}
+        </span>
+      </Button>
+
       <MessageList
         chatItems={sessionState?.chatItems || []}
         isLoading={isPromptLoading}

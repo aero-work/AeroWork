@@ -146,6 +146,10 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
           return update.state;
         }
 
+        case "dangerous_mode_updated": {
+          return { ...prev, dangerousMode: update.dangerousMode, updatedAt: Date.now() };
+        }
+
         case "noop":
         default:
           return prev;
@@ -199,18 +203,8 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
         }
 
         case "tool_call": {
-          const toolCall: ToolCall = {
-            toolCallId: update.toolCallId,
-            title: update.title,
-            kind: update.kind,
-            status: update.status,
-            rawInput: update.rawInput,
-            rawOutput: update.rawOutput,
-            content: update.content,
-            locations: update.locations,
-          };
-
-          // Check if tool call already exists (avoid duplicates)
+          // Tool calls are handled by session/state_update (tool_call_added) to avoid duplicates
+          // Only update existing tool calls here (for real-time status updates during execution)
           const existingIndex = prev.chatItems.findIndex(
             (item) => item.type === "tool_call" && item.toolCall.toolCallId === update.toolCallId
           );
@@ -235,12 +229,9 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
             return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
           }
 
-          // Add new tool call
-          return {
-            ...prev,
-            chatItems: [...prev.chatItems, { type: "tool_call", toolCall }],
-            updatedAt: Date.now(),
-          };
+          // Don't add new tool calls here - let session/state_update handle it
+          // This prevents duplicates from both notification types
+          return prev;
         }
 
         case "tool_call_update": {

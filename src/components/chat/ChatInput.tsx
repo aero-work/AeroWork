@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Send, Square } from "lucide-react";
 
@@ -15,6 +16,7 @@ export function ChatInput({
   isLoading,
   disabled,
 }: ChatInputProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const isComposingRef = useRef(false);
 
@@ -60,8 +62,8 @@ export function ChatInput({
             onCompositionEnd={handleCompositionEnd}
             placeholder={
               disabled
-                ? "Connect to an agent to start chatting..."
-                : "Type a message..."
+                ? t("chat.connectToChat")
+                : t("chat.placeholder")
             }
             disabled={disabled || isLoading}
             className="w-full min-h-[44px] max-h-32 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"

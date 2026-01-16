@@ -12,6 +12,7 @@ import type {
   PermissionOutcome,
   MCPServer,
 } from "@/types/acp";
+import { useSessionStore } from "@/stores/sessionStore";
 import type {
   ListPluginsResponse,
   MarketplaceResponse,
@@ -246,6 +247,13 @@ export class WebSocketTransport implements Transport {
             handler({ sessionId, update });
           }
         }
+        break;
+      }
+      case "sessions/updated": {
+        // Session list was updated (e.g., session stopped, status changed)
+        const { sessions } = params as { sessions: SessionInfo[] };
+        console.log("Sessions updated notification:", sessions.length, "sessions");
+        useSessionStore.getState().setAvailableSessions(sessions);
         break;
       }
       default:

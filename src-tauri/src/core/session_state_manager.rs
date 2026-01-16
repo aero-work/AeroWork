@@ -286,6 +286,37 @@ impl SessionStateManager {
         None
     }
 
+    /// Set dangerous mode for a session and broadcast to all subscribers
+    pub fn set_dangerous_mode(&self, session_id: &SessionId, enabled: bool) -> bool {
+        let updated = {
+            let mut states = self.states.write();
+            if let Some(state) = states.get_mut(session_id) {
+                state.set_dangerous_mode(enabled);
+                info!("Set dangerous mode for session {}: {}", session_id, enabled);
+                true
+            } else {
+                false
+            }
+        };
+
+        if updated {
+            // Broadcast to all subscribers
+            self.broadcast_update(session_id, SessionStateUpdate::DangerousModeUpdated {
+                dangerous_mode: enabled,
+            });
+        }
+
+        updated
+    }
+
+    /// Get dangerous mode status for a session
+    pub fn is_dangerous_mode(&self, session_id: &SessionId) -> bool {
+        let states = self.states.read();
+        states.get(session_id)
+            .map(|s| s.is_dangerous_mode())
+            .unwrap_or(false)
+    }
+
     /// Broadcast an update to all subscribers of a session
     fn broadcast_update(&self, session_id: &SessionId, update: SessionStateUpdate) {
         let subs = self.subscriptions.read();

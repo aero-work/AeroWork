@@ -14,6 +14,8 @@ import { useAgentStore, type ConnectionStatus } from "@/stores/agentStore";
 import { MobileProjectSelector } from "@/components/layout/MobileProjectSelector";
 import { cn } from "@/lib/utils";
 import * as fileService from "@/services/fileService";
+import { agentAPI } from "@/services/api";
+import { useSessionData } from "@/hooks/useSessionData";
 import {
   ArrowLeft,
   Save,
@@ -38,15 +40,15 @@ function getConnectionColor(status: ConnectionStatus): string {
   }
 }
 
-/** Get connection status text (only for non-connected states) */
-function getConnectionText(status: ConnectionStatus): string | null {
+/** Get connection status text key (only for non-connected states) */
+function getConnectionTextKey(status: ConnectionStatus): string | null {
   switch (status) {
     case "connecting":
-      return "Connecting...";
+      return "header.connecting";
     case "error":
-      return "Failed";
+      return "header.failed";
     case "disconnected":
-      return "Offline";
+      return "header.offline";
     case "connected":
     default:
       return null; // No text for connected state
@@ -75,12 +77,21 @@ export function MobileHeader() {
   // Get active session info for conversation header
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const availableSessions = useSessionStore((state) => state.availableSessions);
-  const dangerousModeSessions = useSessionStore((state) => state.dangerousModeSessions);
-  const toggleDangerousMode = useSessionStore((state) => state.toggleDangerousMode);
   const activeSession = availableSessions.find((s) => s.id === activeSessionId);
 
-  // Check if current session is in dangerous mode
-  const isDangerousMode = activeSessionId ? dangerousModeSessions.has(activeSessionId) : false;
+  // Get session state from server (includes dangerous mode)
+  const { state: sessionState } = useSessionData(activeSessionId);
+  const isDangerousMode = sessionState?.dangerousMode ?? false;
+
+  // Toggle dangerous mode via API (syncs to all clients)
+  const toggleDangerousMode = useCallback(async () => {
+    if (!activeSessionId) return;
+    try {
+      await agentAPI.setDangerousMode(activeSessionId, !isDangerousMode);
+    } catch (error) {
+      console.error("Failed to toggle dangerous mode:", error);
+    }
+  }, [activeSessionId, isDangerousMode]);
 
   // Get current file being viewed
   const currentFile = openFiles.find((f) => f.path === viewingFilePath);
@@ -108,14 +119,14 @@ export function MobileHeader() {
           const summary = activeSession.summary;
           return summary.length > 20 ? summary.slice(0, 20) + "..." : summary;
         }
-        return "Conversation";
+        return t("session.conversation");
 
       case "file-viewer":
         // Show file name
         if (viewingFilePath) {
-          return viewingFilePath.split("/").pop() || "File";
+          return viewingFilePath.split("/").pop() || t("files.file");
         }
-        return "File";
+        return t("files.file");
 
       default:
         return "Aero Work";
@@ -181,13 +192,14 @@ export function MobileHeader() {
         );
 
       case "conversation":
-        // Dangerous mode indicator + options menu
+        // Yolo mode indicator + options menu
         return (
           <>
-            {/* Dangerous mode indicator */}
+            {/* Yolo mode indicator */}
             {isDangerousMode && (
-              <span className="text-xs font-bold text-red-500 animate-pulse mr-1">
-                {t("session.dangerousModeEnabled")}
+              <span className="text-xs font-bold text-yellow-500 animate-pulse mr-1">
+                <span style={{ fontFamily: "Quantico, sans-serif", fontStyle: "italic" }}>Yolo</span>
+                {" ⚠️"}
               </span>
             )}
             {/* Options menu */}
@@ -199,11 +211,11 @@ export function MobileHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => activeSessionId && toggleDangerousMode(activeSessionId)}
-                  className={cn(isDangerousMode && "text-red-500")}
+                  onClick={toggleDangerousMode}
+                  className={cn(isDangerousMode && "text-yellow-500")}
                 >
-                  <AlertTriangle className={cn("w-4 h-4 mr-2", isDangerousMode && "text-red-500")} />
-                  {t("session.dangerousMode")}
+                  <AlertTriangle className={cn("w-4 h-4 mr-2", isDangerousMode && "text-yellow-500")} />
+                  {t("session.yoloMode")}
                   {isDangerousMode && " ✓"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -277,9 +289,9 @@ export function MobileHeader() {
             {/* Connection status indicator (only on primary views) */}
             {PRIMARY_VIEWS.includes(currentView) && (
               <div className="flex items-center gap-1.5 ml-1">
-                {getConnectionText(connectionStatus) && (
+                {getConnectionTextKey(connectionStatus) && (
                   <span className="text-xs text-muted-foreground">
-                    {getConnectionText(connectionStatus)}
+                    {t(getConnectionTextKey(connectionStatus)!)}
                   </span>
                 )}
                 <span

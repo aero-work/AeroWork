@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -20,9 +21,59 @@ import {
   RefreshCw,
   GitFork,
   Loader2,
+  Square,
+  Clock,
 } from "lucide-react";
 import { agentAPI } from "@/services/api";
-import type { SessionInfo } from "@/types/acp";
+import type { SessionInfo, SessionStatus } from "@/types/acp";
+
+/** Format relative time */
+function formatRelativeTime(timestamp: string | number, t: (key: string, options?: Record<string, unknown>) => string): string {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return t("time.justNow");
+  if (diffMins < 60) return t("time.minutesAgo", { count: diffMins });
+  if (diffHours < 24) return t("time.hoursAgo", { count: diffHours });
+  if (diffDays === 1) return t("time.yesterday");
+  if (diffDays < 7) return t("time.daysAgo", { count: diffDays });
+
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** Get status badge styles */
+function getStatusBadgeStyles(status: SessionStatus): string {
+  switch (status) {
+    case "running":
+      return "bg-blue-500/20 text-blue-600 dark:text-blue-400";
+    case "pending":
+      return "bg-orange-500/20 text-orange-600 dark:text-orange-400";
+    case "idle":
+      return "bg-green-500/20 text-green-600 dark:text-green-400";
+    case "stopped":
+    default:
+      return "bg-gray-500/20 text-gray-600 dark:text-gray-400";
+  }
+}
+
+/** Get status label key */
+function getStatusLabelKey(status: SessionStatus): string {
+  switch (status) {
+    case "running":
+      return "session.status.running";
+    case "pending":
+      return "session.status.pending";
+    case "idle":
+      return "session.status.ready";
+    case "stopped":
+    default:
+      return "session.status.stopped";
+  }
+}
 
 type SidebarSection = "sessions" | "files";
 
@@ -73,6 +124,7 @@ function CollapsibleSection({
 }
 
 function SettingsButton() {
+  const { t } = useTranslation();
   const openSettings = useSettingsStore((state) => state.openSettings);
   const isSettingsOpen = useSettingsStore((state) => state.isOpen);
 
@@ -87,16 +139,18 @@ function SettingsButton() {
       )}
     >
       <Settings className="w-4 h-4" />
-      <span>Settings</span>
+      <span>{t("tabs.settings")}</span>
     </button>
   );
 }
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const [openSections, setOpenSections] = useState<Set<SidebarSection>>(
     new Set(["sessions", "files"])
   );
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
+  const [stoppingSessionId, setStoppingSessionId] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -136,14 +190,20 @@ export function Sidebar() {
   const handleNewSession = useCallback(async () => {
     if (!currentWorkingDir || isCreatingSession) return;
     setIsCreatingSession(true);
+    closeSettings();
+    showChat();
     try {
-      await agentAPI.createSession(currentWorkingDir);
+      const sessionId = await agentAPI.createSession(currentWorkingDir);
+      // Set the new session as active
+      setActiveSession(sessionId);
+      // Refresh sessions list
+      await agentAPI.listSessions(currentWorkingDir, 20, 0);
     } catch (error) {
       console.error("Failed to create session:", error);
     } finally {
       setIsCreatingSession(false);
     }
-  }, [currentWorkingDir, isCreatingSession]);
+  }, [currentWorkingDir, isCreatingSession, closeSettings, showChat, setActiveSession]);
 
   const handleDeleteSession = async (
     e: React.MouseEvent,
@@ -195,6 +255,18 @@ export function Sidebar() {
     await agentAPI.listSessions(currentWorkingDir || undefined, 20, 0);
   };
 
+  const handleStopSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setStoppingSessionId(sessionId);
+    try {
+      await agentAPI.stopSession(sessionId);
+    } catch (error) {
+      console.error("Failed to stop session:", error);
+    } finally {
+      setStoppingSessionId(null);
+    }
+  };
+
   // Split sessions into active and historical
   const activeSessions = availableSessions.filter((s) => s.active);
   const historicalSessions = availableSessions.filter((s) => !s.active);
@@ -203,7 +275,7 @@ export function Sidebar() {
     <div className="h-full flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-hidden">
         {/* Sessions Section */}
         <CollapsibleSection
-          title="Sessions"
+          title={t("sidebar.sessions")}
           icon={<MessageSquare className="w-4 h-4" />}
           isOpen={openSections.has("sessions")}
           onToggle={() => toggleSection("sessions")}
@@ -247,112 +319,134 @@ export function Sidebar() {
               <div className="px-2 py-4 text-xs text-muted-foreground text-center">
                 {isConnected
                   ? currentWorkingDir
-                    ? "No sessions yet"
-                    : "Select a project first"
-                  : "Connect to start"}
+                    ? t("sidebar.noSessions")
+                    : t("sidebar.selectProjectFirst")
+                  : t("sidebar.connectToStart")}
               </div>
             ) : (
               <>
                 {/* Active Sessions */}
-                {activeSessions.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Active
-                    </div>
-                    {activeSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className={cn(
-                          "flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group",
-                          activeSessionId === session.id
-                            ? "bg-accent text-accent-foreground ring-2 ring-primary ring-offset-1 ring-offset-background"
-                            : "hover:bg-accent/50"
-                        )}
-                        onClick={() => { setActiveSession(session.id); closeSettings(); showChat(); }}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <MessageSquare className="w-3 h-3 flex-shrink-0" />
-                          <span className="text-sm truncate">{session.summary || "Session"}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {/* Active indicator - green dot */}
-                          <div
-                            className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
-                            title="Active session"
-                          />
+                {activeSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      "flex flex-col px-2 py-2 rounded-md cursor-pointer group",
+                      activeSessionId === session.id
+                        ? "bg-primary/15 border-l-2 border-l-primary"
+                        : "hover:bg-accent/50"
+                    )}
+                    onClick={() => { setActiveSession(session.id); closeSettings(); showChat(); }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <MessageSquare className="w-3 h-3 flex-shrink-0" />
+                        <span className="text-sm truncate">{session.lastUserMessage || session.summary || t("session.conversation")}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {stoppingSessionId === session.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => handleDeleteSession(e, session.id)}
+                            className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                            onClick={(e) => handleStopSession(e, session.id)}
+                            title={t("chat.stop")}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Square className="w-3 h-3" />
                           </Button>
-                        </div>
+                        )}
                       </div>
-                    ))}
-                  </>
-                )}
+                    </div>
+                    {/* Status + Time + Message count row */}
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground pl-5">
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 rounded-full font-medium",
+                          getStatusBadgeStyles(session.status)
+                        )}
+                      >
+                        {t(getStatusLabelKey(session.status))}
+                      </span>
+                      {session.lastActivity && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatRelativeTime(session.lastActivity, t)}
+                        </span>
+                      )}
+                      {session.messageCount > 0 && (
+                        <span>{t("session.messages", { count: session.messageCount })}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
 
                 {/* Historical Sessions */}
-                {historicalSessions.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 mt-2 text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                      <History className="w-3 h-3" />
-                      History
-                    </div>
-                    {historicalSessions.map((sessionInfo) => (
-                      <div
-                        key={sessionInfo.id}
-                        className={cn(
-                          "flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer group hover:bg-accent/50",
-                          resumingSessionId === sessionInfo.id && "opacity-50"
-                        )}
-                        onClick={() => handleResumeSession(sessionInfo)}
-                      >
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <History className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
-                            <span className="text-sm truncate">
-                              {sessionInfo.summary || "Session"}
-                            </span>
-                          </div>
-                          {sessionInfo.lastUserMessage && (
-                            <span className="text-xs text-muted-foreground truncate pl-5">
-                              {sessionInfo.lastUserMessage}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                          {resumingSessionId === sessionInfo.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => handleForkSession(e, sessionInfo)}
-                                title="Fork session"
-                              >
-                                <GitFork className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => handleDeleteSession(e, sessionInfo.id)}
-                                title="Delete session"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                {historicalSessions.map((sessionInfo) => (
+                  <div
+                    key={sessionInfo.id}
+                    className={cn(
+                      "flex flex-col px-2 py-2 rounded-md cursor-pointer group hover:bg-accent/50",
+                      resumingSessionId === sessionInfo.id && "opacity-50"
+                    )}
+                    onClick={() => handleResumeSession(sessionInfo)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <History className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                        <span className="text-sm truncate">
+                          {sessionInfo.lastUserMessage || sessionInfo.summary || t("session.conversation")}
+                        </span>
                       </div>
-                    ))}
-                  </>
-                )}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                        {resumingSessionId === sessionInfo.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={(e) => handleForkSession(e, sessionInfo)}
+                              title="Fork session"
+                            >
+                              <GitFork className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={(e) => handleDeleteSession(e, sessionInfo.id)}
+                              title={t("common.delete")}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {/* Time + Message count row */}
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground pl-5">
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 rounded-full font-medium",
+                          getStatusBadgeStyles(sessionInfo.status)
+                        )}
+                      >
+                        {t(getStatusLabelKey(sessionInfo.status))}
+                      </span>
+                      {sessionInfo.lastActivity && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatRelativeTime(sessionInfo.lastActivity, t)}
+                        </span>
+                      )}
+                      {sessionInfo.messageCount > 0 && (
+                        <span>{t("session.messages", { count: sessionInfo.messageCount })}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </>
             )}
           </div>
@@ -360,7 +454,7 @@ export function Sidebar() {
 
         {/* Files Section */}
         <CollapsibleSection
-          title="Files"
+          title={t("tabs.files")}
           icon={<FolderTree className="w-4 h-4" />}
           isOpen={openSections.has("files")}
           onToggle={() => toggleSection("files")}
@@ -388,7 +482,7 @@ export function Sidebar() {
               <FileTree />
             ) : (
               <div className="px-4 py-4 text-xs text-muted-foreground text-center">
-                Select a project to view files
+                {t("files.selectProject")}
               </div>
             )}
           </div>

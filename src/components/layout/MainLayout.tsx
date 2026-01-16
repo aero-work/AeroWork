@@ -46,41 +46,40 @@ function DesktopLayout() {
     return <ChatView />;
   };
 
-  // Main horizontal content (sidebar + main content)
-  const renderHorizontalContent = () => {
-    return (
-      <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize="18%" minSize="2%" maxSize="90%">
-          <div className="h-full border-r overflow-hidden">
-            <Sidebar />
-          </div>
-        </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel defaultSize="82%" minSize="5%">
-          <div className="h-full overflow-hidden">
-            {renderMainContent()}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    );
-  };
+  // Horizontal content (sidebar + main content)
+  // Always render to preserve resize state across terminal toggle
+  const horizontalContent = (
+    <ResizablePanelGroup direction="horizontal" className="h-full" id="main-horizontal">
+      <ResizablePanel id="sidebar" defaultSize="18%" minSize="2%" maxSize="90%">
+        <div className="h-full border-r overflow-hidden">
+          <Sidebar />
+        </div>
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel id="content" defaultSize="82%" minSize="5%">
+        <div className="h-full overflow-hidden">
+          {renderMainContent()}
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
 
   return (
     <div className="h-screen flex flex-col">
       <Header />
       <main className="flex-1 min-h-0 overflow-hidden">
         {isTerminalPanelOpen ? (
-          <ResizablePanelGroup direction="vertical" className="h-full">
-            <ResizablePanel defaultSize="70%" minSize="5%">
-              {renderHorizontalContent()}
+          <ResizablePanelGroup direction="vertical" className="h-full" id="main-vertical">
+            <ResizablePanel id="main-area" defaultSize="70%" minSize="5%">
+              {horizontalContent}
             </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize="30%" minSize="3%" maxSize="95%">
+            <ResizableHandle orientation="vertical" />
+            <ResizablePanel id="terminal" defaultSize="30%" minSize="3%" maxSize="95%">
               <TerminalPanel />
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          renderHorizontalContent()
+          horizontalContent
         )}
       </main>
       <StatusBar />

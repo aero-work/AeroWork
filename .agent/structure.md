@@ -108,6 +108,11 @@ aero-work/
 │   │   ├── api.ts                # AgentAPI class (high-level wrapper)
 │   │   ├── fileService.ts        # File operations via WebSocket
 │   │   └── terminalService.ts    # Terminal operations via WebSocket
+│   ├── i18n/                     # Internationalization
+│   │   ├── index.ts              # i18next initialization
+│   │   └── locales/              # Translation files
+│   │       ├── en.json           # English translations
+│   │       └── zh.json           # Chinese translations
 │   ├── hooks/                    # Custom React hooks
 │   │   ├── useAutoConnect.ts     # Auto-connect to backend on mount
 │   │   ├── useZoom.ts            # Cmd+/- zoom functionality (desktop only)
@@ -277,8 +282,56 @@ Agent Process (stdio)
 | `agentStore` | Agent configurations, active agent, connection status |
 | `fileStore` | Working directory, file tree, open files, file types |
 | `terminalStore` | Terminal instances, active terminal |
-| `settingsStore` | MCP servers, models, permission rules, UI preferences |
+| `settingsStore` | MCP servers, models, permission rules, UI preferences, language |
 | `mobileNavStore` | Mobile navigation view, sidebar state, file viewer path |
+
+## Internationalization (i18n)
+
+### Overview
+
+The application uses `react-i18next` for multi-language support. Default language is detected from the browser, with fallback to English.
+
+### File Structure
+
+```
+src/i18n/
+├── index.ts          # i18next initialization with language detection
+└── locales/
+    ├── en.json       # English translations (complete)
+    └── zh.json       # Chinese translations
+```
+
+### Usage Pattern
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation();
+  return <button>{t('common.save')}</button>;
+}
+```
+
+### Translation Keys Structure
+
+```json
+{
+  "common": { "save": "Save", "cancel": "Cancel", ... },
+  "header": { "connecting": "Connecting...", ... },
+  "tabs": { "chat": "Chat", "files": "Files", ... },
+  "session": { "newConversation": "New Conversation", ... },
+  "settings": { "title": "Settings", "language": {...}, "theme": {...}, ... },
+  "chat": { "placeholder": "Type your message...", ... },
+  "files": { "title": "Files", ... },
+  "sidebar": { "sessions": "Sessions", ... }
+}
+```
+
+### Adding a New Language
+
+1. Create `src/i18n/locales/{lang}.json` by copying `en.json`
+2. Translate all strings
+3. Import and add to `resources` in `src/i18n/index.ts`
 
 ## Mobile Architecture
 

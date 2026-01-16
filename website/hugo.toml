@@ -1,29 +1,23 @@
-baseURL = 'https://aeromind.github.io/aero-work/'
+baseURL = 'https://aeromind.github.io/aero-work-website/'
 languageCode = 'en-us'
 title = 'Aero Work'
 theme = 'hugo-book'
 
-# Enable emoji
 enableEmoji = true
 
-# Build settings
 [build]
   writeStats = true
 
 [params]
-  # Book theme settings
   BookTheme = 'auto'
   BookToC = true
   BookSection = 'docs'
-  BookRepo = 'https://github.com/aeromind/aero-work'
-  BookEditPath = 'edit/main/website/content'
+  BookRepo = 'https://github.com/aeromind/aero-work-website'
+  BookEditPath = 'edit/main/content'
   BookDateFormat = 'January 2, 2006'
 
-  # Custom
   description = 'A cross-platform AI code agent application built with Tauri + React'
   author = 'Aero Work Team'
-
-  # Social links
   github = 'https://github.com/aeromind/aero-work'
 
 [menu]

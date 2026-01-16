@@ -197,6 +197,9 @@
     overflow-x: auto;
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 
     & code {
       background-color: transparent;
@@ -204,6 +207,9 @@
       padding: 0;
       font-size: 0.875rem;
       line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
   }
 
@@ -315,9 +321,15 @@
   & pre {
     background-color: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 
     & code {
       color: white;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
   }
 

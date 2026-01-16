@@ -79,9 +79,16 @@ Build a unified interface for AI-powered code development that works seamlessly 
 ### Settings
 - **Agent Settings**: Configure connected agents (command, args, environment)
 - **Permission Settings**: Default permission rules and patterns
-- **UI Settings**: Theme (light/dark), layout preferences, font settings
+- **UI Settings**: Theme (light/dark), layout preferences, font settings, language selection
 - **Workspace Settings**: Project-specific configurations
 - **Server Settings**: Web server port, authentication settings
+
+### Internationalization (i18n)
+- **Multi-language Support**: UI elements support different languages (English, Chinese)
+- **Common Terms in English**: Technical terms like "Terminal", "Session", "Agent" remain in English
+- **System Language Detection**: Default to system language, fallback to English
+- **Language Setting**: Configurable in General settings
+- **Easy Extension**: Adding a new language = translating a single JSON file
 
 ## UI/UX Design
 
@@ -244,6 +251,7 @@ See `.agent/mobile-redesign.md` for full design specification.
 - [ ] Agent switching UI
 - [x] Mobile responsive design (complete mobile UI with navigation)
 - [x] Theme support (light/dark with system detection)
+- [x] Internationalization (i18n) support with react-i18next (English, Chinese)
 
 ### Phase 6: Advanced Features ✅
 - [ ] Remote agent connections
