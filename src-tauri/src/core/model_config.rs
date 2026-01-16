@@ -246,46 +246,54 @@ impl ModelConfig {
         dirs::home_dir().map(|home| home.join(".claude").join("settings.json"))
     }
 
-    /// Get the default model name for Claude settings.json "model" field
-    /// This maps to Claude Code's model selection (opus, sonnet, haiku)
+    /// Get the model value for Claude settings.json "model" field
+    /// Returns the full ANTHROPIC_MODEL value for the active provider
     pub fn get_claude_model(&self) -> Option<String> {
         match self.active_provider.as_str() {
             "default" => None, // Use Claude Code's default
             "anthropic" => {
                 let p = &self.providers.anthropic;
-                // Map model to short name for settings.json
-                if p.model.contains("opus") {
-                    Some("opus".to_string())
-                } else if p.model.contains("haiku") {
-                    Some("haiku".to_string())
+                if !p.model.is_empty() {
+                    Some(p.model.clone())
                 } else {
-                    Some("sonnet".to_string())
+                    Some("claude-sonnet-4-5".to_string())
                 }
             }
             "bedrock" => {
                 let p = &self.providers.bedrock;
-                // Map bedrock model to short name
-                if p.model.contains("opus") {
-                    Some("opus".to_string())
-                } else if p.model.contains("haiku") {
-                    Some("haiku".to_string())
+                if !p.model.is_empty() {
+                    Some(p.model.clone())
                 } else {
-                    Some("sonnet".to_string())
+                    Some("global.anthropic.claude-sonnet-4-5-20250929-v1:0".to_string())
                 }
             }
-            "bigmodel" | "minimax" | "moonshot" => {
-                // These providers use their own model, set to sonnet as placeholder
-                Some("sonnet".to_string())
+            "minimax" => {
+                let p = &self.providers.minimax;
+                if !p.model.is_empty() {
+                    Some(p.model.clone())
+                } else {
+                    Some("MiniMax-M2.1".to_string())
+                }
+            }
+            "moonshot" => {
+                let p = &self.providers.moonshot;
+                if !p.model.is_empty() {
+                    Some(p.model.clone())
+                } else {
+                    Some("kimi-k2-thinking-turbo".to_string())
+                }
+            }
+            "bigmodel" => {
+                // BigModel doesn't have a specific model field
+                None
             }
             custom_id => {
-                // Custom provider - try to map
+                // Custom provider
                 if let Some(p) = self.custom_providers.iter().find(|p| p.id == custom_id) {
-                    if p.model.contains("opus") {
-                        Some("opus".to_string())
-                    } else if p.model.contains("haiku") {
-                        Some("haiku".to_string())
+                    if !p.model.is_empty() {
+                        Some(p.model.clone())
                     } else {
-                        Some("sonnet".to_string())
+                        None
                     }
                 } else {
                     None
