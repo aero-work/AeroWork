@@ -42,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Unified Rust Backend**: Single Tauri backend serves both desktop and web modes
 - **WebSocket Transport**: Both desktop and web use WebSocket for communication
 - **ACP Protocol**: Agent Client Protocol for standardized agent communication (JSON-RPC over stdio)
-- **Agent**: Uses `npx @anthropic-ai/claude-code --acp` to spawn Claude Code agent
+- **Agent**: Uses `npx @zed-industries/claude-code-acp` to spawn Claude Code agent
 - **State Management**: Backend is the source of truth for session data; frontend subscribes via hooks
 
 ## Project Structure

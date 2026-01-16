@@ -1124,7 +1124,7 @@ async fn ensure_agent_connected(state: &Arc<AppState>) -> Result<(), String> {
 
     let mut client = AcpClient::new(notification_tx, permission_tx);
     client
-        .connect("npx", &["@anthropic-ai/claude-code", "--acp"])
+        .connect("npx", &["@zed-industries/claude-code-acp"])
         .await
         .map_err(|e| e.to_string())?;
 

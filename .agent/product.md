@@ -286,7 +286,7 @@ See `.agent/mobile-redesign.md` for full design specification.
       "name": "Claude Code",
       "type": "stdio",
       "command": "npx",
-      "args": ["@anthropic-ai/claude-code-acp"],
+      "args": ["@zed-industries/claude-code-acp"],
       "env": {}
     }
   ]
