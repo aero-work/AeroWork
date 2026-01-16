@@ -1,12 +1,14 @@
-# Aero Work
+# AeroWork
 
 An AI agent for everyone from everywhere.
 
-![Screenshot](aerowork.png)
+![Main Window](./assets/main-window.webp)
+
+![Settings Page](./assets/setting-page-demo.webp)
 
 ## About
 
-Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview), Aero Work aims to bring AI agent capabilities to everyone - not just developers. While Cowork is macOS-only and requires Claude Max, Aero Work is open-source, cross-platform, and works with any Anthropic-compatible API.
+Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview), AeroWork aims to bring AI agent capabilities to everyone - not just developers. While Cowork is macOS-only and requires Claude Max, AeroWork is open-source, cross-platform, and works with any Anthropic-compatible API.
 
 ### Design Principles
 

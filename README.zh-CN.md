@@ -1,12 +1,14 @@
-# Aero Work
+# AeroWork
 
 随时随地，人人可用的 AI Agent。
 
-![截图](aerowork.png)
+![主界面](./assets/main-window.webp)
+
+![设置页面](./assets/setting-page-demo.webp)
 
 ## 关于
 
-灵感来源于 Anthropic 发布的 [Cowork](https://claude.com/blog/cowork-research-preview)，Aero Work 致力于让每个人都能使用 AI Agent 能力，而不仅仅是开发者。Cowork 仅支持 macOS 且需要 Claude Max 订阅，而 Aero Work 是开源的、跨平台的，支持任何 Anthropic 兼容 API。
+灵感来源于 Anthropic 发布的 [Cowork](https://claude.com/blog/cowork-research-preview)，AeroWork 致力于让每个人都能使用 AI Agent 能力，而不仅仅是开发者。Cowork 仅支持 macOS 且需要 Claude Max 订阅，而 AeroWork 是开源的、跨平台的，支持任何 Anthropic 兼容 API。
 
 ### 设计原则
 
