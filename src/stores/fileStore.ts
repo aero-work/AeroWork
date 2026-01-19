@@ -184,9 +184,10 @@ export const useFileStore = create<FileState & FileActions>()(
         set((state) => {
           state.serverCwd = cwd;
           state.serverHome = home;
-          // If no working directory is set, use server cwd as default
+          // If no working directory is set, use home as default
+          // (server cwd might be /usr or other system dirs on Linux)
           if (!state.currentWorkingDir) {
-            state.currentWorkingDir = cwd;
+            state.currentWorkingDir = home;
           }
         });
       },
