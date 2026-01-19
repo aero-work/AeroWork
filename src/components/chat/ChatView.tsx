@@ -135,13 +135,13 @@ export function ChatView() {
   );
   const hasActiveTodos = todos.length > 0 && todos.some((t) => t.status !== "completed");
 
+  // For web/mobile, show connection setup UI when not connected
+  if (!isConnected && !isDesktopApp()) {
+    return <ConnectionSetup isConnecting={connectionStatus === "connecting"} />;
+  }
+
   // Empty state when no session
   if (!hasSession) {
-    // For web/mobile, show connection setup UI when not connected
-    if (!isConnected && !isDesktopApp()) {
-      return <ConnectionSetup isConnecting={connectionStatus === "connecting"} />;
-    }
-
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground">
         <div className="flex flex-col items-center gap-4 max-w-md text-center px-4">
