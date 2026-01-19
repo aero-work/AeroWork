@@ -29,3 +29,4 @@ reference/
 dev-dist/
 src-tauri/target/*
 src-tauri/target
+src-tauri/resources/*
