@@ -106,14 +106,12 @@
       "description": "WebSocket 服务器连接设置",
       "wsUrl": "WebSocket 地址",
       "wsUrlPlaceholder": "ws://192.168.1.100:8765/ws",
-      "wsUrlDescription": "输入要连接的 WebSocket 服务器地址",
       "lanAddresses": "可用地址",
       "showQrCode": "显示二维码",
       "hideQrCode": "隐藏二维码",
       "scanToConnect": "扫码从其他设备连接",
       "copied": "已复制到剪贴板",
-      "noServer": "未连接到服务器",
-      "autoDetected": "自动检测 (桌面应用)"
+      "noServer": "未连接到服务器"
     }
   },
   "agent": {

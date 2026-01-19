@@ -106,14 +106,12 @@
       "description": "WebSocket server connection settings",
       "wsUrl": "WebSocket URL",
       "wsUrlPlaceholder": "ws://192.168.1.100:8765/ws",
-      "wsUrlDescription": "Enter the WebSocket server URL to connect",
       "lanAddresses": "Available Addresses",
       "showQrCode": "Show QR Code",
       "hideQrCode": "Hide QR Code",
       "scanToConnect": "Scan to connect from another device",
       "copied": "Copied to clipboard",
-      "noServer": "Not connected to server",
-      "autoDetected": "Auto-detected (Desktop App)"
+      "noServer": "Not connected to server"
     }
   },
   "agent": {

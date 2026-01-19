@@ -42,19 +42,19 @@ function getWebSocketUrl(): string {
     return envUrl;
   }
 
-  // In Tauri app, always connect to localhost
-  if (isTauriApp()) {
-    const port = import.meta.env?.VITE_WS_PORT || "8765";
-    return `ws://127.0.0.1:${port}/ws`;
-  }
-
-  // For web clients, check if there's a stored custom URL
+  // Check for stored custom URL (works for both desktop and web)
   const storedUrl = getStoredWsUrl();
   if (storedUrl) {
     return storedUrl;
   }
 
-  // Default: connect to same host
+  // In Tauri app, default to localhost
+  if (isTauriApp()) {
+    const port = import.meta.env?.VITE_WS_PORT || "8765";
+    return `ws://127.0.0.1:${port}/ws`;
+  }
+
+  // Default for web: connect to same host
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.hostname || "localhost";
   const port = import.meta.env?.VITE_WS_PORT || "8765";

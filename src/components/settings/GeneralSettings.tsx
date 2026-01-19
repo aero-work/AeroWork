@@ -105,41 +105,26 @@ export function GeneralSettings() {
               </p>
             </div>
 
-            {/* For web clients: Show WS URL input */}
-            {!isDesktop && (
-              <div className="space-y-2">
-                <Label className="text-sm">{t("settings.serverConnection.wsUrl")}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={inputWsUrl}
-                    onChange={(e) => setInputWsUrl(e.target.value)}
-                    placeholder={t("settings.serverConnection.wsUrlPlaceholder")}
-                    className="font-mono text-sm"
-                  />
-                  <Button onClick={handleSaveWsUrl} size="sm">
-                    {t("common.save")}
-                  </Button>
-                </div>
+            {/* WS URL input - available for both desktop and web */}
+            <div className="space-y-2">
+              <Label className="text-sm">{t("settings.serverConnection.wsUrl")}</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={inputWsUrl}
+                  onChange={(e) => setInputWsUrl(e.target.value)}
+                  placeholder={currentWsEndpoint || t("settings.serverConnection.wsUrlPlaceholder")}
+                  className="font-mono text-sm"
+                />
+                <Button onClick={handleSaveWsUrl} size="sm">
+                  {t("common.save")}
+                </Button>
+              </div>
+              {currentWsEndpoint && !wsUrl && (
                 <p className="text-xs text-muted-foreground">
-                  {t("settings.serverConnection.wsUrlDescription")}
+                  {t("common.current")}: {currentWsEndpoint}
                 </p>
-              </div>
-            )}
-
-            {/* For desktop app: Show current endpoint */}
-            {isDesktop && currentWsEndpoint && (
-              <div className="space-y-2">
-                <Label className="text-sm">{t("settings.serverConnection.wsUrl")}</Label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate">
-                    {currentWsEndpoint}
-                  </code>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {t("settings.serverConnection.autoDetected")}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* LAN Addresses */}
             {isConnected && serverInfo?.lanAddresses && serverInfo.lanAddresses.length > 0 && (
