@@ -85,12 +85,26 @@ impl AcpClient {
             }
         }
 
-        // On macOS, when launched via .app bundle (double-click), the PATH is minimal.
-        // We need to add common Node.js installation paths so npx can be found.
+        // On macOS, when launched via .app bundle (double-click), the environment is minimal.
+        // We need to load the user's shell environment to find npx and other tools.
         #[cfg(target_os = "macos")]
         {
+            // Try to get full shell environment by running a login shell
+            let shell_env = get_shell_environment();
+
+            // Apply shell environment variables (except a few we want to control)
+            for (key, value) in &shell_env {
+                // Skip PATH - we'll handle it specially
+                if key != "PATH" && key != "PWD" && key != "_" {
+                    cmd.env(key, value);
+                }
+            }
+
+            // Build comprehensive PATH
+            let shell_path = shell_env.get("PATH").map(|s| s.as_str()).unwrap_or("");
             let current_path = std::env::var("PATH").unwrap_or_default();
             let home = std::env::var("HOME").unwrap_or_default();
+
             let mut additional_paths = vec![
                 "/usr/local/bin".to_string(),
                 "/opt/homebrew/bin".to_string(),
@@ -98,8 +112,10 @@ impl AcpClient {
                 format!("{}/.local/bin", home),
                 format!("{}/Library/pnpm", home),
                 format!("{}/.bun/bin", home),
+                format!("{}/.cargo/bin", home),
             ];
-            // Find nvm node versions (glob doesn't work in PATH, so we need to enumerate)
+
+            // Find nvm node versions
             let nvm_versions_dir = format!("{}/.nvm/versions/node", home);
             if let Ok(entries) = std::fs::read_dir(&nvm_versions_dir) {
                 for entry in entries.flatten() {
@@ -109,6 +125,37 @@ impl AcpClient {
                     }
                 }
             }
+
+            // Combine: additional paths + shell PATH + current PATH
+            let new_path = format!("{}:{}:{}", additional_paths.join(":"), shell_path, current_path);
+            cmd.env("PATH", new_path);
+        }
+
+        // On Linux, also ensure common paths are included
+        #[cfg(target_os = "linux")]
+        {
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            let home = std::env::var("HOME").unwrap_or_default();
+
+            let additional_paths = vec![
+                "/usr/local/bin".to_string(),
+                format!("{}/.local/bin", home),
+                format!("{}/.bun/bin", home),
+                format!("{}/.cargo/bin", home),
+                format!("{}/.nvm/versions/node/*/bin", home), // Won't work as glob, but nvm sets PATH anyway
+            ];
+
+            // Find nvm node versions
+            let nvm_versions_dir = format!("{}/.nvm/versions/node", home);
+            if let Ok(entries) = std::fs::read_dir(&nvm_versions_dir) {
+                for entry in entries.flatten() {
+                    let bin_path = entry.path().join("bin");
+                    if bin_path.exists() {
+                        cmd.env("PATH", format!("{}:{}", bin_path.to_string_lossy(), current_path.clone()));
+                    }
+                }
+            }
+
             let new_path = format!("{}:{}", additional_paths.join(":"), current_path);
             cmd.env("PATH", new_path);
         }
@@ -483,4 +530,42 @@ impl Drop for AcpClient {
             let _ = child.start_kill();
         }
     }
+}
+
+/// Get environment variables from user's login shell.
+/// This is important on macOS where GUI apps don't inherit shell environment.
+#[cfg(target_os = "macos")]
+fn get_shell_environment() -> HashMap<String, String> {
+    use std::process::Command as StdCommand;
+
+    let mut env_map = HashMap::new();
+
+    // Try to get the user's default shell
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+
+    // Run a login shell to get environment variables
+    // Using -l for login shell and -c to execute a command
+    let result = StdCommand::new(&shell)
+        .args(["-l", "-c", "env"])
+        .output();
+
+    match result {
+        Ok(output) if output.status.success() => {
+            let env_output = String::from_utf8_lossy(&output.stdout);
+            for line in env_output.lines() {
+                if let Some((key, value)) = line.split_once('=') {
+                    env_map.insert(key.to_string(), value.to_string());
+                }
+            }
+            info!("Loaded {} environment variables from login shell", env_map.len());
+        }
+        Ok(output) => {
+            warn!("Login shell returned error: {:?}", String::from_utf8_lossy(&output.stderr));
+        }
+        Err(e) => {
+            warn!("Failed to run login shell {}: {}", shell, e);
+        }
+    }
+
+    env_map
 }
