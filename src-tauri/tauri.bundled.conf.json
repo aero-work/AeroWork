@@ -34,7 +34,13 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "resources/bun-runtime": "./",
+      "resources/claude-code-agent.js": "./",
+      "resources/claude-code-cli.js": "./",
+      "resources/claude-code-cli": "./"
+    }
   },
   "plugins": {
     "shell": {

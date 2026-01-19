@@ -1176,28 +1176,40 @@ fn find_bundled_agents() -> BundledAgentPaths {
 }
 
 /// Find the agent command to use and any environment variables needed.
-/// Priority:
-/// 1. Bundled: bun-runtime + claude-code-agent.js (with CLAUDE_CODE_EXECUTABLE pointing to claude-code-cli wrapper)
-/// 2. Fallback to npx @zed-industries/claude-code-acp
+///
+/// When `bundled-agent` feature is enabled:
+/// - Uses bundled bun-runtime + claude-code-agent.js
+/// - Sets CLAUDE_CODE_EXECUTABLE to bundled claude-code-cli wrapper
+///
+/// When `bundled-agent` feature is disabled (default):
+/// - Uses npx @zed-industries/claude-code-acp directly
+/// - Requires Node.js/npx to be installed on the system
 fn find_agent_command() -> (String, Vec<String>, Option<Vec<(String, String)>>) {
-    let bundled = find_bundled_agents();
+    #[cfg(feature = "bundled-agent")]
+    {
+        let bundled = find_bundled_agents();
 
-    // If we have both bun runtime and ACP agent JS, use bundled approach
-    if let (Some(bun_path), Some(acp_js_path)) = (bundled.bun_runtime.clone(), bundled.acp_agent_js) {
-        let mut env_vars = Vec::new();
+        // If we have both bun runtime and ACP agent JS, use bundled approach
+        if let (Some(bun_path), Some(acp_js_path)) = (bundled.bun_runtime.clone(), bundled.acp_agent_js) {
+            let mut env_vars = Vec::new();
 
-        // If we have bundled Claude CLI wrapper, set it as the executable path
-        if let Some(cli_wrapper_path) = bundled.claude_cli_wrapper {
-            // The wrapper script is a single executable file that the SDK can check exists
-            env_vars.push(("CLAUDE_CODE_EXECUTABLE".to_string(), cli_wrapper_path));
+            // If we have bundled Claude CLI wrapper, set it as the executable path
+            if let Some(cli_wrapper_path) = bundled.claude_cli_wrapper {
+                // The wrapper script is a single executable file that the SDK can check exists
+                env_vars.push(("CLAUDE_CODE_EXECUTABLE".to_string(), cli_wrapper_path));
+            }
+
+            let env_vars_opt = if env_vars.is_empty() { None } else { Some(env_vars) };
+            info!("Using bundled agent: {} {}", bun_path, acp_js_path);
+            return (bun_path, vec![acp_js_path], env_vars_opt);
         }
 
-        let env_vars_opt = if env_vars.is_empty() { None } else { Some(env_vars) };
-        return (bun_path, vec![acp_js_path], env_vars_opt);
+        // Bundled feature enabled but files not found - warn and fallback
+        warn!("bundled-agent feature enabled but bundled files not found, falling back to npx");
     }
 
-    // Fallback to npx
-    info!("No bundled agent found, falling back to npx");
+    // Use npx (default mode, or fallback when bundled files not found)
+    info!("Using npx @zed-industries/claude-code-acp");
     ("npx".to_string(), vec!["@zed-industries/claude-code-acp".to_string()], None)
 }
 

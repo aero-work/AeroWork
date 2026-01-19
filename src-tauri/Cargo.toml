@@ -46,3 +46,5 @@ path = "src/bin/server.rs"
 [features]
 default = ["websocket"]
 websocket = []
+# Enable bundled agent mode - requires running scripts/bundle-agent.sh first
+bundled-agent = []
