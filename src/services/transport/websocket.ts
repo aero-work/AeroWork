@@ -67,16 +67,27 @@ export class WebSocketTransport implements Transport {
     this.url = url;
   }
 
+  private connectTimeout = 10000; // 10 seconds connection timeout
+
   async connect(): Promise<void> {
     if (this.connected && this.ws?.readyState === WebSocket.OPEN) {
       return;
     }
 
     return new Promise((resolve, reject) => {
+      // Set connection timeout
+      const timeoutId = setTimeout(() => {
+        if (!this.connected) {
+          this.ws?.close();
+          reject(new Error("Connection timeout - server not responding"));
+        }
+      }, this.connectTimeout);
+
       try {
         this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
+          clearTimeout(timeoutId);
           console.log("WebSocket connected to", this.url);
           this.connected = true;
           this.reconnectAttempts = 0;
@@ -84,12 +95,14 @@ export class WebSocketTransport implements Transport {
         };
 
         this.ws.onclose = (event) => {
+          clearTimeout(timeoutId);
           console.log("WebSocket closed:", event.code, event.reason);
           this.connected = false;
           this.handleDisconnect();
         };
 
         this.ws.onerror = (error) => {
+          clearTimeout(timeoutId);
           console.error("WebSocket error:", error);
           if (!this.connected) {
             reject(new Error("Failed to connect to WebSocket server"));
