@@ -57,6 +57,7 @@ export default defineConfig(async () => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -97,6 +98,34 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+
+  // Build optimization - code splitting for smaller chunks
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor chunks
+          "react-vendor": ["react", "react-dom"],
+          "ui-vendor": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-switch",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-collapsible",
+            "@radix-ui/react-context-menu",
+            "@radix-ui/react-tooltip",
+          ],
+          "editor-vendor": ["@monaco-editor/react"],
+          "syntax-vendor": ["react-syntax-highlighter"],
+          "markdown-vendor": ["react-markdown", "remark-gfm"],
+          "terminal-vendor": ["xterm", "@xterm/addon-fit", "@xterm/addon-webgl"],
+          "i18n-vendor": ["i18next", "react-i18next"],
+        },
+      },
     },
   },
 

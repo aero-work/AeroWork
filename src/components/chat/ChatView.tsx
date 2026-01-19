@@ -4,11 +4,19 @@ import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { TodoPanel } from "./TodoPanel";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useSessionData } from "@/hooks/useSessionData";
 import { agentAPI } from "@/services/api";
+import { isDesktopApp } from "@/services/transport";
+import { ConnectionSetup } from "@/components/common/ConnectionSetup";
 import { cn } from "@/lib/utils";
 import { Bot, FolderOpen, MessageSquare, Loader2, AlertTriangle } from "lucide-react";
 import type { ChatItem, TodoWriteInput, TodoItem } from "@/types/acp";
@@ -129,6 +137,11 @@ export function ChatView() {
 
   // Empty state when no session
   if (!hasSession) {
+    // For web/mobile, show connection setup UI when not connected
+    if (!isConnected && !isDesktopApp()) {
+      return <ConnectionSetup isConnecting={connectionStatus === "connecting"} />;
+    }
+
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground">
         <div className="flex flex-col items-center gap-4 max-w-md text-center px-4">
@@ -199,23 +212,34 @@ export function ChatView() {
   return (
     <div className="flex flex-col h-full relative">
       {/* Yolo mode toggle - floating in top right corner */}
-      <Button
-        variant={isYoloMode ? "default" : "ghost"}
-        size="sm"
-        onClick={handleToggleYoloMode}
-        className={cn(
-          "absolute top-2 right-2 z-10 gap-1.5 opacity-70 hover:opacity-100 transition-opacity",
-          isYoloMode && "bg-yellow-500 hover:bg-yellow-600 text-black opacity-100"
-        )}
-      >
-        <AlertTriangle className="w-4 h-4" />
-        <span
-          style={{ fontFamily: "Quantico, sans-serif", fontStyle: "italic" }}
-          className={cn(!isYoloMode && "line-through")}
-        >
-          {isYoloMode ? t("session.yoloModeEnabled") : t("session.yoloModeDisabled")}
-        </span>
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isYoloMode ? "default" : "secondary"}
+              size="sm"
+              onClick={handleToggleYoloMode}
+              className={cn(
+                "absolute top-2 right-2 z-10 gap-1.5 transition-all",
+                isYoloMode
+                  ? "bg-yellow-500 hover:bg-yellow-600 text-black"
+                  : "bg-background/95 backdrop-blur-sm border shadow-sm hover:bg-muted"
+              )}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span
+                style={{ fontFamily: "Quantico, sans-serif", fontStyle: "italic" }}
+                className={cn(!isYoloMode && "line-through opacity-60")}
+              >
+                {t("session.yoloMode")}
+              </span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isYoloMode ? t("session.yoloModeClickToDisable") : t("session.yoloModeClickToEnable")}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <MessageList
         chatItems={sessionState?.chatItems || []}

@@ -101,6 +101,10 @@ impl WebSocketServer {
 
         info!("WebSocket server listening on 0.0.0.0:{}", actual_port);
 
+        // Store the actual port in AppState BEFORE starting the server
+        // (axum::serve blocks until server shuts down)
+        self.state.set_ws_port(actual_port);
+
         axum::serve(listener, app).await?;
 
         Ok(actual_port)
@@ -1889,16 +1893,14 @@ fn set_active_provider_handler(provider: &str) -> Result<(), String> {
 }
 
 /// Get LAN IP addresses and construct WebSocket URLs
+/// Only returns addresses that other devices can connect to (excludes localhost)
 fn get_lan_addresses(port: u16) -> Vec<String> {
     let mut addresses = Vec::new();
-
-    // Always include localhost
-    addresses.push(format!("ws://127.0.0.1:{}/ws", port));
 
     // Get network interfaces
     if let Ok(interfaces) = get_if_addrs::get_if_addrs() {
         for iface in interfaces {
-            // Skip loopback interfaces
+            // Skip loopback interfaces (127.0.0.1)
             if iface.is_loopback() {
                 continue;
             }

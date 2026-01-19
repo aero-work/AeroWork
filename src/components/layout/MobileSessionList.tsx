@@ -7,11 +7,11 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useMobileNavStore } from "@/stores/mobileNavStore";
+import { ConnectionSetup } from "@/components/common/ConnectionSetup";
 import { agentAPI } from "@/services/api";
 import type { SessionInfo } from "@/types/acp";
 import {
   Plus,
-  Bot,
   FolderOpen,
   Loader2,
   RefreshCw,
@@ -112,22 +112,9 @@ export function MobileSessionList() {
     }
   }, []);
 
-  // Not connected state
+  // Not connected state - show connection setup
   if (!isConnected) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center text-muted-foreground px-6">
-        <Bot className="w-16 h-16 opacity-20 mb-4" />
-        <h2 className="text-xl font-semibold text-foreground mb-2">
-          {t("session.welcome.title")}
-        </h2>
-        <p className="text-sm text-center mb-4">
-          {t("session.welcome.connectMessage")}
-        </p>
-        <p className="text-xs text-center text-muted-foreground">
-          {t("session.welcome.checkSettings")}
-        </p>
-      </div>
-    );
+    return <ConnectionSetup isConnecting={connectionStatus === "connecting"} />;
   }
 
   // No project selected

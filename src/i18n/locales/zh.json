@@ -51,6 +51,8 @@
     "yoloModeDescription": "自动通过所有工具调用（谨慎使用）",
     "yoloModeEnabled": "Yolo 已启用",
     "yoloModeDisabled": "Yolo 已禁用",
+    "yoloModeClickToEnable": "点击启用 Yolo 模式",
+    "yoloModeClickToDisable": "点击禁用 Yolo 模式",
     "status": {
       "ready": "就绪",
       "running": "运行中",
@@ -111,7 +113,11 @@
       "hideQrCode": "隐藏二维码",
       "scanToConnect": "扫码从其他设备连接",
       "copied": "已复制到剪贴板",
-      "noServer": "未连接到服务器"
+      "noServer": "未连接到服务器",
+      "scanQrCode": "扫描二维码",
+      "scanQrCodeHint": "将摄像头对准二维码以扫描 WebSocket 地址",
+      "noCameraFound": "未找到摄像头",
+      "cameraAccessDenied": "摄像头访问被拒绝，请在浏览器设置中允许摄像头访问"
     }
   },
   "agent": {
@@ -269,7 +275,9 @@
     "connected": "已连接",
     "disconnected": "已断开",
     "connecting": "连接中",
-    "error": "连接错误"
+    "error": "连接错误",
+    "setupDescription": "连接到 AeroWork 服务器开始使用",
+    "setupHint": "输入桌面端 AeroWork 应用显示的 WebSocket 地址，或扫描二维码连接"
   },
   "time": {
     "justNow": "刚刚",

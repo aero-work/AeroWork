@@ -14,7 +14,9 @@
     "server:build": "cd src-tauri && cargo build --release --bin aero-server --features websocket",
     "headless": "concurrently -n web,ws -c blue,green \"bun run dev\" \"bun run server\"",
     "headless:build": "bun run build && bun run server:build",
-    "bundle:agent": "./scripts/bundle-agent.sh"
+    "bundle:agent": "./scripts/bundle-agent.sh",
+    "deploy": "./scripts/deploy-cloudflare.sh",
+    "deploy:prod": "./scripts/deploy-cloudflare.sh --production"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -29,6 +31,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
@@ -38,6 +41,7 @@
     "@xterm/addon-webgl": "^0.19.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html5-qrcode": "^2.3.8",
     "i18next": "^25.7.4",
     "i18next-browser-languagedetector": "^8.2.0",
     "immer": "^10.1.1",

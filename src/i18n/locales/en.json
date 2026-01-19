@@ -51,6 +51,8 @@
     "yoloModeDescription": "Auto-approve all tool calls (use with caution)",
     "yoloModeEnabled": "Yolo enabled",
     "yoloModeDisabled": "Yolo disabled",
+    "yoloModeClickToEnable": "Click to enable Yolo mode",
+    "yoloModeClickToDisable": "Click to disable Yolo mode",
     "status": {
       "ready": "Ready",
       "running": "Running",
@@ -111,7 +113,11 @@
       "hideQrCode": "Hide QR Code",
       "scanToConnect": "Scan to connect from another device",
       "copied": "Copied to clipboard",
-      "noServer": "Not connected to server"
+      "noServer": "Not connected to server",
+      "scanQrCode": "Scan QR Code",
+      "scanQrCodeHint": "Point your camera at a QR code to scan the WebSocket URL",
+      "noCameraFound": "No camera found on this device",
+      "cameraAccessDenied": "Camera access denied. Please allow camera access in your browser settings."
     }
   },
   "agent": {
@@ -269,7 +275,9 @@
     "connected": "Connected",
     "disconnected": "Disconnected",
     "connecting": "Connecting",
-    "error": "Connection Error"
+    "error": "Connection Error",
+    "setupDescription": "Connect to an AeroWork server to start",
+    "setupHint": "Enter the WebSocket URL from your AeroWork desktop app, or scan the QR code"
   },
   "time": {
     "justNow": "Just now",
