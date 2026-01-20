@@ -230,7 +230,8 @@
     "placeholder": "输入您的消息...",
     "connectToChat": "连接 Agent 以开始对话...",
     "send": "发送",
-    "stop": "停止"
+    "stop": "停止",
+    "sendFailed": "消息发送失败"
   },
   "files": {
     "title": "文件",
@@ -242,6 +243,12 @@
     "newFolder": "新建文件夹",
     "uploadFile": "上传文件",
     "forceEdit": "强制编辑"
+  },
+  "editor": {
+    "unsavedChanges": "未保存的更改",
+    "unsavedChangesDescription": "此文件有未保存的更改。是否在关闭前保存？",
+    "discardChanges": "放弃",
+    "saveAndClose": "保存并关闭"
   },
   "projectSelector": {
     "title": "打开项目",

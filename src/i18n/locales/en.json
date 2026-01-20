@@ -230,7 +230,8 @@
     "placeholder": "Type your message...",
     "connectToChat": "Connect to an agent to start chatting...",
     "send": "Send",
-    "stop": "Stop"
+    "stop": "Stop",
+    "sendFailed": "Failed to send message"
   },
   "files": {
     "title": "Files",
@@ -242,6 +243,12 @@
     "newFolder": "New Folder",
     "uploadFile": "Upload File",
     "forceEdit": "Force Edit"
+  },
+  "editor": {
+    "unsavedChanges": "Unsaved Changes",
+    "unsavedChangesDescription": "This file has unsaved changes. Do you want to save before closing?",
+    "discardChanges": "Discard",
+    "saveAndClose": "Save & Close"
   },
   "projectSelector": {
     "title": "Open Project",

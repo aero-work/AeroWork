@@ -261,6 +261,8 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  /** True if optimistic message failed to send */
+  sendFailed?: boolean;
 }
 
 // Unified chat item - can be a message or tool call

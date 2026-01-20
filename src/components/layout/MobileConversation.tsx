@@ -54,6 +54,7 @@ export function MobileConversation() {
     isLoading: isSessionLoading,
     error: sessionError,
     addOptimisticMessage,
+    markMessageFailed,
   } = useSessionData(activeSessionId);
 
   const isConnected = connectionStatus === "connected";
@@ -71,9 +72,11 @@ export function MobileConversation() {
         await agentAPI.sendPrompt(activeSessionId, content, messageId);
       } catch (error) {
         console.error("Failed to send message:", error);
+        // Mark optimistic message as failed
+        markMessageFailed(messageId);
       }
     },
-    [activeSessionId, addOptimisticMessage]
+    [activeSessionId, addOptimisticMessage, markMessageFailed]
   );
 
   const handleCancel = useCallback(async () => {
@@ -108,15 +111,21 @@ export function MobileConversation() {
         // Add optimistic message
         const messageId = addOptimisticMessage(responseContent);
 
-        // Send as a regular prompt
-        await agentAPI.sendPrompt(activeSessionId, responseContent, messageId);
+        try {
+          // Send as a regular prompt
+          await agentAPI.sendPrompt(activeSessionId, responseContent, messageId);
+        } catch (sendError) {
+          console.error("Failed to submit AskUserQuestion answer:", sendError);
+          // Mark optimistic message as failed
+          markMessageFailed(messageId);
+        }
       } catch (error) {
-        console.error("Failed to submit AskUserQuestion answer:", error);
+        console.error("Failed to format AskUserQuestion answer:", error);
       } finally {
         setAskUserQuestionSubmitting(null);
       }
     },
-    [activeSessionId, addOptimisticMessage]
+    [activeSessionId, addOptimisticMessage, markMessageFailed]
   );
 
   // Extract todos from chat items (must be before any conditional returns)

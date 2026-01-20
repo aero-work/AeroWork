@@ -35,6 +35,8 @@ interface UseSessionDataResult {
   refresh: () => Promise<void>;
   /** Add optimistic user message (will be confirmed by server) */
   addOptimisticMessage: (content: string) => string;
+  /** Mark an optimistic message as failed to send */
+  markMessageFailed: (messageId: string) => void;
 }
 
 /**
@@ -329,6 +331,25 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
     return messageId;
   }, []);
 
+  /**
+   * Mark an optimistic message as failed to send
+   */
+  const markMessageFailed = useCallback((messageId: string) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const newChatItems = prev.chatItems.map((item) => {
+        if (item.type === "message" && item.message.id === messageId) {
+          return {
+            ...item,
+            message: { ...item.message, sendFailed: true },
+          };
+        }
+        return item;
+      });
+      return { ...prev, chatItems: newChatItems, updatedAt: Date.now() };
+    });
+  }, []);
+
   // Get connection status
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const isConnected = connectionStatus === "connected";
@@ -438,6 +459,7 @@ export function useSessionData(sessionId: SessionId | null): UseSessionDataResul
     error,
     refresh,
     addOptimisticMessage,
+    markMessageFailed,
   };
 }
 

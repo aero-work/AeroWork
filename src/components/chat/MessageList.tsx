@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { Message, ChatItem } from "@/types/acp";
 import { ToolCallCard } from "./ToolCallCard";
-import { Bot, User, Copy, Check, ArrowDown } from "lucide-react";
+import { Bot, User, Copy, Check, ArrowDown, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -173,7 +173,9 @@ export function MessageList({
 }
 
 function MessageBubble({ message }: { message: Message }) {
+  const { t } = useTranslation();
   const isUser = message.role === "user";
+  const isFailed = message.sendFailed === true;
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const isDark = useIsDarkMode();
@@ -211,9 +213,19 @@ function MessageBubble({ message }: { message: Message }) {
           "relative flex-1 max-w-[80%] rounded-lg px-2.5 py-1.5 group shadow-sm",
           isUser
             ? "bg-blue-500 dark:bg-blue-600/80 text-white"
-            : "bg-card text-card-foreground border border-border"
+            : "bg-card text-card-foreground border border-border",
+          isFailed && "opacity-70"
         )}
       >
+        {/* Send failed indicator */}
+        {isFailed && (
+          <div
+            className="absolute -left-7 top-1/2 -translate-y-1/2 text-destructive"
+            title={t("chat.sendFailed")}
+          >
+            <AlertCircle className="w-5 h-5" />
+          </div>
+        )}
         {/* Copy button */}
         <button
           onClick={handleCopy}
