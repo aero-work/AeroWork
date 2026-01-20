@@ -77,7 +77,7 @@ pub fn run() {
                 let preferred_port = std::env::var("AERO_WS_PORT")
                     .ok()
                     .and_then(|p| p.parse().ok())
-                    .unwrap_or(8765);
+                    .unwrap_or(9527);
 
                 tauri::async_runtime::spawn(async move {
                     let server = server::WebSocketServer::new(ws_state.clone());

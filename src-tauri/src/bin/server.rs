@@ -1,7 +1,7 @@
 //! Standalone WebSocket server for web mode
 //!
 //! Run with: cargo run --bin server
-//! Or: cargo run --bin server -- --port 8765
+//! Or: cargo run --bin server -- --port 9527
 
 use std::sync::Arc;
 
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .nth(1)
         .and_then(|p| p.parse().ok())
         .or_else(|| std::env::var("AERO_WS_PORT").ok().and_then(|p| p.parse().ok()))
-        .unwrap_or(8765);
+        .unwrap_or(9527);
 
     tracing::info!("Starting standalone WebSocket server on preferred port {}", port);
 

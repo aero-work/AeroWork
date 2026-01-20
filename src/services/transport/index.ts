@@ -67,7 +67,7 @@ function getWebSocketUrl(): string {
 
   // In desktop Tauri app, default to localhost
   if (isDesktopTauriApp()) {
-    const port = import.meta.env?.VITE_WS_PORT || "8765";
+    const port = import.meta.env?.VITE_WS_PORT || "9527";
     return `ws://127.0.0.1:${port}/ws`;
   }
 
@@ -80,7 +80,7 @@ function getWebSocketUrl(): string {
   // Default for web: connect to same host
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.hostname || "localhost";
-  const port = import.meta.env?.VITE_WS_PORT || "8765";
+  const port = import.meta.env?.VITE_WS_PORT || "9527";
   return `${protocol}//${host}:${port}/ws`;
 }
 

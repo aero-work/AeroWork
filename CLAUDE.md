@@ -36,6 +36,12 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 # TypeScript checks
 bunx tsc --noEmit
+
+# Android build (WebView-only client, connects to desktop server)
+bun run tauri android init                           # First time setup
+./scripts/android-post-init.sh                       # Configure cleartext traffic
+bun run tauri android build --target aarch64 --debug # Debug build (auto-signed)
+bun run tauri android build --target aarch64         # Release build (unsigned)
 ```
 
 ## Architecture
@@ -101,6 +107,12 @@ User config files are stored in `~/.config/aerowork/`:
 - WebSocket server runs on port 9527 by default
 - Agent spawned via: `npx @zed-industries/claude-code-acp`
 - PTY support via `portable-pty` for terminal feature
+
+### Android
+- Android app is WebView-only client (no backend, connects to desktop server via WebSocket)
+- Requires manual WebSocket URL configuration on first launch
+- Uses conditional compilation: `#[cfg(not(target_os = "android"))]` for desktop-only modules
+- Run `./scripts/android-post-init.sh` after `tauri android init` to configure cleartext traffic
 
 ### Known Issues
 - Chinese IME Enter key issue in desktop Tauri WebView (see `.agent/known-issues.md`)

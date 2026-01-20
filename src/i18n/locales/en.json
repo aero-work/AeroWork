@@ -107,7 +107,7 @@
       "title": "Server Connection",
       "description": "WebSocket server connection settings",
       "wsUrl": "WebSocket URL",
-      "wsUrlPlaceholder": "ws://192.168.1.100:8765/ws",
+      "wsUrlPlaceholder": "ws://192.168.1.100:9527/ws",
       "lanAddresses": "Available Addresses",
       "showQrCode": "Show QR Code",
       "hideQrCode": "Hide QR Code",

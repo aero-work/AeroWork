@@ -107,7 +107,7 @@
       "title": "服务器连接",
       "description": "WebSocket 服务器连接设置",
       "wsUrl": "WebSocket 地址",
-      "wsUrlPlaceholder": "ws://192.168.1.100:8765/ws",
+      "wsUrlPlaceholder": "ws://192.168.1.100:9527/ws",
       "lanAddresses": "可用地址",
       "showQrCode": "显示二维码",
       "hideQrCode": "隐藏二维码",
