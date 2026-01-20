@@ -1,7 +1,16 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useFileStore, useActiveFile, type OpenFile } from "@/stores/fileStore";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import * as fileService from "@/services/fileService";
 import { X, FileText, Save, Download, Upload } from "lucide-react";
 
@@ -48,6 +57,7 @@ function Tab({ file, isActive, onSelect, onClose }: TabProps) {
 }
 
 export function EditorTabs() {
+  const { t } = useTranslation();
   const openFiles = useFileStore((state) => state.openFiles);
   const activeFilePath = useFileStore((state) => state.activeFilePath);
   const setActiveFile = useFileStore((state) => state.setActiveFile);
@@ -58,6 +68,10 @@ export function EditorTabs() {
   const activeFile = useActiveFile();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // State for unsaved changes confirmation dialog
+  const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
+  const [pendingClosePath, setPendingClosePath] = useState<string | null>(null);
+
   const handleSelect = useCallback(
     (path: string) => {
       setActiveFile(path);
@@ -67,11 +81,44 @@ export function EditorTabs() {
 
   const handleClose = useCallback(
     (path: string) => {
-      // TODO: Check for unsaved changes before closing
+      // Check if file has unsaved changes
+      const file = openFiles.find((f) => f.path === path);
+      if (file?.isDirty) {
+        setPendingClosePath(path);
+        setUnsavedDialogOpen(true);
+        return;
+      }
       closeFile(path);
     },
-    [closeFile]
+    [closeFile, openFiles]
   );
+
+  // Close file without saving (discard changes)
+  const handleDiscardAndClose = useCallback(() => {
+    if (pendingClosePath) {
+      closeFile(pendingClosePath);
+      setPendingClosePath(null);
+    }
+    setUnsavedDialogOpen(false);
+  }, [closeFile, pendingClosePath]);
+
+  // Save file and then close
+  const handleSaveAndClose = useCallback(async () => {
+    if (pendingClosePath) {
+      const file = openFiles.find((f) => f.path === pendingClosePath);
+      if (file) {
+        try {
+          await fileService.writeFile(file.path, file.content);
+          markFileSaved(file.path);
+          closeFile(pendingClosePath);
+        } catch (error) {
+          console.error("Failed to save file:", error);
+        }
+      }
+      setPendingClosePath(null);
+    }
+    setUnsavedDialogOpen(false);
+  }, [closeFile, markFileSaved, openFiles, pendingClosePath]);
 
   // Save file to backend
   const handleSave = useCallback(async () => {
@@ -199,6 +246,32 @@ export function EditorTabs() {
           accept="*/*"
         />
       </div>
+
+      {/* Unsaved changes confirmation dialog */}
+      <Dialog open={unsavedDialogOpen} onOpenChange={setUnsavedDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editor.unsavedChanges")}</DialogTitle>
+            <DialogDescription>
+              {t("editor.unsavedChangesDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setUnsavedDialogOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDiscardAndClose}>
+              {t("editor.discardChanges")}
+            </Button>
+            <Button onClick={handleSaveAndClose}>
+              {t("editor.saveAndClose")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
