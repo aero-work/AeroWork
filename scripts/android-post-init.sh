@@ -50,6 +50,15 @@ if [ -f "$MANIFEST" ]; then
         rm -f "$MANIFEST.bak"
         echo "Modified: AndroidManifest.xml (keyboard resize)"
     fi
+
+    # Add camera permission for QR code scanning
+    if grep -q "android.permission.CAMERA" "$MANIFEST"; then
+        echo "AndroidManifest.xml camera permission already set, skipping..."
+    else
+        sed -i.bak 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />\n\n    <!-- Camera feature (optional, for QR code scanning) -->\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />|' "$MANIFEST"
+        rm -f "$MANIFEST.bak"
+        echo "Modified: AndroidManifest.xml (camera permission)"
+    fi
 else
     echo "Error: AndroidManifest.xml not found at $MANIFEST"
     echo "Please run 'tauri android init' first."

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { isDesktopApp, getWebSocketEndpoint } from "@/services/transport";
+import { isDesktopApp, isMobileTauriApp, getWebSocketEndpoint } from "@/services/transport";
 import { QrScanner } from "@/components/common/QrScanner";
 import { Wifi, ScanLine, Loader2 } from "lucide-react";
 
@@ -23,7 +23,9 @@ export function ConnectionSetup({ onConnect, isConnecting }: ConnectionSetupProp
 
   const currentWsEndpoint = getWebSocketEndpoint();
   const isDesktop = isDesktopApp();
-  const isMobile = !isDesktop && typeof window !== "undefined" && window.innerWidth < 768;
+  // Show QR scan button on mobile devices (browser or Tauri Android app)
+  const isMobileOrTauriMobile = isMobileTauriApp() ||
+    (!isDesktop && typeof window !== "undefined" && window.innerWidth < 768);
 
   const handleConnect = () => {
     if (inputWsUrl && inputWsUrl !== wsUrl) {
@@ -69,7 +71,7 @@ export function ConnectionSetup({ onConnect, isConnecting }: ConnectionSetupProp
                 placeholder={currentWsEndpoint || t("settings.serverConnection.wsUrlPlaceholder")}
                 className="font-mono text-sm"
               />
-              {isMobile && (
+              {isMobileOrTauriMobile && (
                 <Button
                   variant="outline"
                   size="icon"
