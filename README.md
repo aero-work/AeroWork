@@ -6,8 +6,7 @@ An AI agent for everyone from everywhere.
 
 ![Main Window](./assets/main-window.webp)
 
-
-Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview), AeroWork aims to bring AI agent capabilities to everyone - not just developers. While Cowork is macOS-only and requires Claude Max, AeroWork is open-source, cross-platform, and works with any Anthropic-compatible API.
+Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview), AeroWork aims to bring AI agent capabilities to everyone - not just developers. While Cowork is macOS-only and requires Claude Max, AeroWork is open-source, cross-platform (Windows, macOS, Linux, Android, Web), and works with any Anthropic-compatible API.
 
 ### Design Principles
 
@@ -32,7 +31,7 @@ Inspired by Anthropic's [Cowork](https://claude.com/blog/cowork-research-preview
 | **Multi-Provider** | Anthropic, Amazon Bedrock, BigModel/Zhipu, MiniMax, Moonshot AI/Kimi, Custom |
 | **MCP Servers** | Visual management of Claude Code's MCP servers |
 | **Skills** | Enable/disable Claude Code skills through UI |
-| **Remote Access** | Everything works via WebSocket - use from phone PWA |
+| **Remote Access** | Everything works via WebSocket (port 9527) - use from phone PWA or Android app |
 | **i18n** | English, Chinese |
 | **Themes** | Light / Dark / System |
 
@@ -56,9 +55,25 @@ bun run dev
 ## Build
 
 ```bash
-bun run tauri build   # Desktop
+bun run tauri build   # Desktop (Windows, macOS, Linux)
 bun run build         # Web
 ```
+
+### Android Build
+
+Android app is a WebView-only client that connects to a desktop server via WebSocket.
+
+```bash
+# First time setup
+bun run tauri android init
+./scripts/android-post-init.sh  # Configure cleartext traffic
+
+# Build
+bun run tauri android build --target aarch64 --debug  # Debug APK
+bun run tauri android build --target aarch64          # Release APK
+```
+
+On first launch, configure the WebSocket URL to your desktop server (default port: `9527`).
 
 ## Configuration
 

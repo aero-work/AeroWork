@@ -4,8 +4,7 @@
 
 ![主界面](./assets/main-window.webp)
 
-
-灵感来源于 Anthropic 发布的 [Cowork](https://claude.com/blog/cowork-research-preview)，AeroWork 致力于让每个人都能使用 AI Agent 能力，而不仅仅是开发者。Cowork 仅支持 macOS 且需要 Claude Max 订阅，而 AeroWork 是开源的、跨平台的，支持任何 Anthropic 兼容 API。
+灵感来源于 Anthropic 发布的 [Cowork](https://claude.com/blog/cowork-research-preview)，AeroWork 致力于让每个人都能使用 AI Agent 能力，而不仅仅是开发者。Cowork 仅支持 macOS 且需要 Claude Max 订阅，而 AeroWork 是开源的、全平台支持 (Windows, macOS, Linux, Android, Web)，兼容任何 Anthropic 兼容 API。
 
 ### 设计原则
 
@@ -30,7 +29,7 @@
 | **多提供商** | Anthropic、Amazon Bedrock、BigModel/智谱、MiniMax、Moonshot AI/Kimi、自定义 |
 | **MCP 服务器** | 可视化管理 Claude Code 的 MCP 服务器 |
 | **Skills** | 通过界面启用/禁用 Claude Code Skills |
-| **远程访问** | 全部功能通过 WebSocket 远程可用，手机 PWA 随时访问 |
+| **远程访问** | 全部功能通过 WebSocket (端口 9527) 远程可用，手机 PWA 或 Android 应用随时访问 |
 | **多语言** | 中文、英文 |
 | **主题** | 亮色 / 暗色 / 跟随系统 |
 
@@ -54,9 +53,25 @@ bun run dev
 ## 构建
 
 ```bash
-bun run tauri build   # 桌面端
+bun run tauri build   # 桌面端 (Windows, macOS, Linux)
 bun run build         # 网页端
 ```
+
+### Android 构建
+
+Android 应用是纯 WebView 客户端，通过 WebSocket 连接桌面端服务器。
+
+```bash
+# 首次初始化
+bun run tauri android init
+./scripts/android-post-init.sh  # 配置明文流量
+
+# 构建
+bun run tauri android build --target aarch64 --debug  # Debug APK
+bun run tauri android build --target aarch64          # Release APK
+```
+
+首次启动需要配置 WebSocket 地址指向桌面端服务器 (默认端口: `9527`)。
 
 ## 配置管理
 
