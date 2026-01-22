@@ -73,6 +73,19 @@ bun run tauri android build --target aarch64          # Release APK
 
 首次启动需要配置 WebSocket 地址指向桌面端服务器 (默认端口: `9527`)。
 
+### macOS 未签名应用
+
+macOS 应用未进行代码签名。首次启动时可能会提示 **"AeroWork 已损坏，无法打开"** 或 **"无法验证开发者"**。
+
+**解决方法:**
+```bash
+# 移除隔离属性
+xattr -cr /Applications/AeroWork.app
+
+# 或在系统设置中允许:
+# 系统设置 → 隐私与安全性 → "仍要打开"
+```
+
 ## 配置管理
 
 强大的配置管理功能，可以管理 Claude Code 系统配置，配置模型/MCP/插件 - 比任何其他工具都好用的 Claude Code 配置管理器。

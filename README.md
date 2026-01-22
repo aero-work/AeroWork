@@ -75,6 +75,19 @@ bun run tauri android build --target aarch64          # Release APK
 
 On first launch, configure the WebSocket URL to your desktop server (default port: `9527`).
 
+### macOS Unsigned App
+
+The macOS app is not code-signed. On first launch, you may see **"AeroWork is damaged and can't be opened"** or **"Apple cannot check it for malicious software"**.
+
+**Solution:**
+```bash
+# Remove quarantine attribute
+xattr -cr /Applications/AeroWork.app
+
+# Or allow in System Settings:
+# System Settings → Privacy & Security → "Open Anyway"
+```
+
 ## Configuration
 
 Featuring powerful configuration management capabilities, it can manage Claude Code system configurations, configure models/MCP/Plugins - a Claude Code configuration manager that's better than any other tool.
