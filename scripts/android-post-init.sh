@@ -4,6 +4,7 @@
 # - Cleartext traffic (ws://) support
 # - Keyboard resize behavior
 # - Release signing (with debug fallback)
+# - Custom MainActivity.kt (keyboard height + back button handling)
 
 set -e
 
@@ -11,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 ANDROID_APP_DIR="$PROJECT_ROOT/src-tauri/gen/android/app/src/main"
 BUILD_GRADLE="$PROJECT_ROOT/src-tauri/gen/android/app/build.gradle.kts"
+MAIN_ACTIVITY="$ANDROID_APP_DIR/java/com/aerowork/dev/MainActivity.kt"
 
 echo "Configuring Android build..."
 
@@ -191,6 +193,138 @@ if [ -d "$ICONS_SRC" ]; then
     done
     echo "Icons copied."
 fi
+
+# 5. Replace MainActivity.kt with custom version
+# Features: keyboard height detection + back button/gesture handling
+echo "Installing custom MainActivity.kt..."
+cat > "$MAIN_ACTIVITY" << 'KOTLIN_EOF'
+package com.aerowork.dev
+
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.View
+import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : TauriActivity() {
+  private var keyboardHeight = 0
+  private var webViewRef: WebView? = null
+
+  override fun onWebViewCreate(webView: WebView) {
+    webViewRef = webView
+  }
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+
+    // Handle Android back gesture (modern approach)
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+        handleBackPress()
+      }
+    })
+
+    // Delay keyboard listener setup until WebView is ready
+    window.decorView.post {
+      setupKeyboardListener()
+    }
+  }
+
+  // Handle back button press - notify WebView and let frontend decide
+  private fun handleBackPress() {
+    val wv = webViewRef ?: findWebView()
+    wv?.evaluateJavascript("""
+      (function() {
+        try {
+          if (typeof window.androidBackCallback === 'function') {
+            return window.androidBackCallback();
+          }
+          return true;
+        } catch (e) {
+          return true;
+        }
+      })()
+    """.trimIndent()) { result ->
+      if (result == "true") {
+        // Frontend says OK to exit, finish the activity
+        finish()
+      }
+      // If result is "false", frontend handled it, do nothing
+    }
+  }
+
+  // Handle back key when WebView has focus
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
+      handleBackPress()
+      return true
+    }
+    return super.dispatchKeyEvent(event)
+  }
+
+  private fun setupKeyboardListener() {
+    val rootView = window.decorView.findViewById<View>(android.R.id.content)
+
+    // Use WindowInsets API to detect keyboard height
+    ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, insets ->
+      val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+      val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+
+      // IME insets includes navigation bar, subtract it to get pure keyboard height
+      val imeHeight = imeInsets.bottom
+      val navBarHeight = navBarInsets.bottom
+      val pureKeyboardHeight = if (imeHeight > navBarHeight) imeHeight - navBarHeight else 0
+
+      if (pureKeyboardHeight != keyboardHeight) {
+        keyboardHeight = pureKeyboardHeight
+        notifyKeyboardHeight(pureKeyboardHeight)
+      }
+
+      insets
+    }
+  }
+
+  private fun notifyKeyboardHeight(height: Int) {
+    // Notify WebView of keyboard height change
+    runOnUiThread {
+      try {
+        val webView = findWebView()
+        webView?.evaluateJavascript(
+          "window.__ANDROID_KEYBOARD_HEIGHT__ = $height; " +
+          "window.dispatchEvent(new CustomEvent('androidKeyboardHeight', { detail: { height: $height } }));",
+          null
+        )
+      } catch (e: Exception) {
+        e.printStackTrace()
+      }
+    }
+  }
+
+  private fun findWebView(): android.webkit.WebView? {
+    return findWebViewInView(window.decorView)
+  }
+
+  private fun findWebViewInView(view: View): android.webkit.WebView? {
+    if (view is android.webkit.WebView) {
+      return view
+    }
+    if (view is android.view.ViewGroup) {
+      for (i in 0 until view.childCount) {
+        val webView = findWebViewInView(view.getChildAt(i))
+        if (webView != null) {
+          return webView
+        }
+      }
+    }
+    return null
+  }
+}
+KOTLIN_EOF
+echo "Created: MainActivity.kt (keyboard + back button handling)"
 
 echo ""
 echo "Done! Android is now configured."

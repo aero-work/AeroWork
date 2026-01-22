@@ -439,11 +439,36 @@ const VIEW_COMPONENTS: Record<MobileView, React.ComponentType> = {
   settings: SettingsPage,
 };
 
+// Extend Window interface for Android callbacks
+declare global {
+  interface Window {
+    androidBackCallback?: () => boolean;
+  }
+}
+
 export function MobileLayout() {
   const currentView = useMobileNavStore((state) => state.currentView);
+  const goBack = useMobileNavStore((state) => state.goBack);
+  const showBackButton = useMobileNavStore((state) => state.showBackButton);
   const ViewComponent = VIEW_COMPONENTS[currentView];
   const connectionStatus = useAgentStore((state) => state.connectionStatus);
   const wsUrl = useSettingsStore((state) => state.wsUrl);
+
+  // Android back button/gesture handling - register callback for MainActivity.kt
+  useEffect(() => {
+    window.androidBackCallback = () => {
+      // Check if we can navigate back within the app
+      if (showBackButton()) {
+        goBack();
+        return false; // Prevent app exit, we handled it
+      }
+      return true; // Allow app exit (on main tabs)
+    };
+
+    return () => {
+      delete window.androidBackCallback;
+    };
+  }, [goBack, showBackButton]);
 
   // Android keyboard height - listen to native events from MainActivity.kt
   // Note: Android returns physical pixels, need to convert to CSS pixels

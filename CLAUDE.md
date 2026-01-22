@@ -146,11 +146,16 @@ User config files are stored in `~/.config/aerowork/`:
 - Run `./scripts/android-post-init.sh` after `tauri android init` to configure:
   - Cleartext traffic (ws://) support via network_security_config.xml
   - Release signing with debug fallback
+  - Custom `MainActivity.kt` with keyboard and back button handling
 - **Keyboard handling**: Standard `adjustResize` doesn't work with `enableEdgeToEdge()`. Solution:
   - `MainActivity.kt` uses WindowInsets API to detect keyboard height
   - Sends height to WebView via `evaluateJavascript` custom event (`androidKeyboardHeight`)
   - `MobileLayout.tsx` listens for event and adjusts container height
   - Physical pixels converted to CSS pixels via `devicePixelRatio`
+- **Back button/gesture handling**: Let frontend control navigation instead of exiting app
+  - `MainActivity.kt` intercepts back via `OnBackPressedCallback` and `dispatchKeyEvent`
+  - Calls `window.androidBackCallback()` to let frontend decide
+  - Frontend returns `false` to handle navigation, `true` to allow app exit
 
 ### macOS
 - App is not code-signed; install scripts auto-remove quarantine attribute

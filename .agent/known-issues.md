@@ -166,3 +166,77 @@ Implemented native keyboard detection using Android WindowInsets API:
 - Android returns physical pixels, must divide by `devicePixelRatio` for CSS pixels
 - IME insets include navigation bar height, must subtract `navigationBars().bottom`
 - `src-tauri/gen/android/` files are generated but can be manually edited and preserved
+
+---
+
+## Android WebView: Back Gesture Exits App Instead of Navigating (RESOLVED)
+
+**Status**: Resolved
+**Platform**: Android Tauri WebView
+**Component**: `MainActivity.kt`, `MobileLayout.tsx`
+
+### Description
+
+On Android, swiping back (gesture navigation) or pressing the back button exits the app instead of navigating to the previous screen within the app.
+
+### Root Cause
+
+Android's back gesture/button is handled by the system and passed to the Activity. In a WebView app, the default behavior is to finish the Activity (exit app) rather than navigate within the WebView.
+
+### Solution
+
+Intercept back events in `MainActivity.kt` and delegate navigation decisions to the frontend:
+
+1. **MainActivity.kt** - Intercept back events:
+   ```kotlin
+   // Modern gesture back handling
+   onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+     override fun handleOnBackPressed() {
+       handleBackPress()
+     }
+   })
+
+   // Handle back key when WebView has focus
+   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+     if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
+       handleBackPress()
+       return true
+     }
+     return super.dispatchKeyEvent(event)
+   }
+
+   private fun handleBackPress() {
+     wv?.evaluateJavascript("""
+       (function() {
+         if (typeof window.androidBackCallback === 'function') {
+           return window.androidBackCallback();
+         }
+         return true;
+       })()
+     """.trimIndent()) { result ->
+       if (result == "true") finish()
+     }
+   }
+   ```
+
+2. **MobileLayout.tsx** - Register callback:
+   ```typescript
+   useEffect(() => {
+     window.androidBackCallback = () => {
+       if (showBackButton()) {
+         goBack();
+         return false; // Prevent app exit
+       }
+       return true; // Allow app exit
+     };
+     return () => { delete window.androidBackCallback; };
+   }, [goBack, showBackButton]);
+   ```
+
+### Maintenance
+
+The custom `MainActivity.kt` is managed by `scripts/android-post-init.sh`. After running `tauri android init`, run the script to restore customizations:
+
+```bash
+./scripts/android-post-init.sh
+```
