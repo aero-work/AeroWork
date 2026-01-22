@@ -77,7 +77,7 @@ bun run tauri android build --target aarch64          # Release APK
 
 **一键安装 (推荐):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aero-work/aero-work/main/scripts/install-mac.sh | bash
 ```
 
 **或从本地 DMG 安装:**

@@ -79,7 +79,7 @@ On first launch, configure the WebSocket URL to your desktop server (default por
 
 **One-line install (recommended):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aero-work/aero-work/main/scripts/install-mac.sh | bash
 ```
 
 **Or install from local DMG:**

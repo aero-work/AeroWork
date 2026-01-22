@@ -3,16 +3,16 @@
 # Downloads and installs AeroWork, handling unsigned app permissions automatically.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/aero-work/aero-work/main/scripts/install-mac.sh | bash
 #
 # Or with a specific version:
-#   curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash -s -- v1.0.0
+#   curl -fsSL https://raw.githubusercontent.com/aero-work/aero-work/main/scripts/install-mac.sh | bash -s -- v1.0.0
 
 set -e
 
 # Configuration
 APP_NAME="AeroWork"
-GITHUB_REPO="anthropics/aerowork"  # Update this to actual repo
+GITHUB_REPO="aero-work/aero-work"
 INSTALL_DIR="/Applications"
 
 # Colors for output
