@@ -73,17 +73,23 @@ bun run tauri android build --target aarch64          # Release APK
 
 首次启动需要配置 WebSocket 地址指向桌面端服务器 (默认端口: `9527`)。
 
-### macOS 未签名应用
+### macOS 安装
 
-macOS 应用未进行代码签名。首次启动时可能会提示 **"AeroWork 已损坏，无法打开"** 或 **"无法验证开发者"**。
-
-**解决方法:**
+**一键安装 (推荐):**
 ```bash
-# 移除隔离属性
-xattr -cr /Applications/AeroWork.app
+curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash
+```
 
-# 或在系统设置中允许:
-# 系统设置 → 隐私与安全性 → "仍要打开"
+**或从本地 DMG 安装:**
+```bash
+./scripts/install-local-mac.sh /path/to/AeroWork.dmg
+```
+
+安装脚本会自动处理未签名应用的权限问题。
+
+**手动安装:** 如果手动安装后提示 **"AeroWork 已损坏"**，请运行:
+```bash
+xattr -cr /Applications/AeroWork.app
 ```
 
 ## 配置管理

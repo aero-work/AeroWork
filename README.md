@@ -75,17 +75,23 @@ bun run tauri android build --target aarch64          # Release APK
 
 On first launch, configure the WebSocket URL to your desktop server (default port: `9527`).
 
-### macOS Unsigned App
+### macOS Installation
 
-The macOS app is not code-signed. On first launch, you may see **"AeroWork is damaged and can't be opened"** or **"Apple cannot check it for malicious software"**.
-
-**Solution:**
+**One-line install (recommended):**
 ```bash
-# Remove quarantine attribute
-xattr -cr /Applications/AeroWork.app
+curl -fsSL https://raw.githubusercontent.com/anthropics/aerowork/main/scripts/install-mac.sh | bash
+```
 
-# Or allow in System Settings:
-# System Settings → Privacy & Security → "Open Anyway"
+**Or install from local DMG:**
+```bash
+./scripts/install-local-mac.sh /path/to/AeroWork.dmg
+```
+
+The install scripts automatically handle the unsigned app permissions.
+
+**Manual installation:** If you install manually, you may see **"AeroWork is damaged"** error. Run:
+```bash
+xattr -cr /Applications/AeroWork.app
 ```
 
 ## Configuration
