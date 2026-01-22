@@ -67,6 +67,9 @@ interface SettingsState {
   autoCleanEmptySessions: boolean;
   language: string; // Empty string means auto-detect from system
   wsUrl: string | null; // Custom WebSocket URL for web clients (null = auto-detect)
+
+  // First launch flag (persisted)
+  hasLaunchedBefore: boolean; // False on first app install, true after first successful connection
 }
 
 interface SettingsActions {
@@ -100,6 +103,7 @@ interface SettingsActions {
   setAutoCleanEmptySessions: (auto: boolean) => void;
   setLanguage: (lang: string) => void;
   setWsUrl: (url: string | null) => void;
+  markLaunched: () => void; // Mark app as launched (called after first successful connection)
 }
 
 const initialState: SettingsState = {
@@ -161,6 +165,7 @@ const initialState: SettingsState = {
   autoCleanEmptySessions: true,
   language: "", // Empty means auto-detect
   wsUrl: null, // null means auto-detect
+  hasLaunchedBefore: false, // Will be set to true after first successful connection
 };
 
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
@@ -336,6 +341,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
           state.wsUrl = url;
         });
       },
+
+      markLaunched: () => {
+        set((state) => {
+          state.hasLaunchedBefore = true;
+        });
+      },
     })),
     {
       name: "aero-work-settings",
@@ -350,6 +361,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         autoCleanEmptySessions: state.autoCleanEmptySessions,
         language: state.language,
         wsUrl: state.wsUrl,
+        hasLaunchedBefore: state.hasLaunchedBefore,
       }),
     }
   )

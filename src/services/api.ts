@@ -159,11 +159,18 @@ class AgentAPI {
         agentStore.setAuthMethods(initResponse.authMethods);
       }
 
-      // Sync current session from backend
-      const currentSessionId = await transport.getCurrentSession();
-      if (currentSessionId) {
-        console.log("Syncing current session from backend:", currentSessionId);
-        sessionStore.setActiveSession(currentSessionId);
+      // Sync current session from backend (skip on first launch to show welcome screen)
+      const settingsStore = useSettingsStore.getState();
+      if (settingsStore.hasLaunchedBefore) {
+        const currentSessionId = await transport.getCurrentSession();
+        if (currentSessionId) {
+          console.log("Syncing current session from backend:", currentSessionId);
+          sessionStore.setActiveSession(currentSessionId);
+        }
+      } else {
+        console.log("First launch detected, skipping session restore to show welcome screen");
+        // Mark as launched after first successful connection
+        settingsStore.markLaunched();
       }
 
       // Get server info (cwd, home path) and set defaults
