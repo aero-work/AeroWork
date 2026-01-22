@@ -230,8 +230,57 @@ portable-pty = "0.8"
 
 ### Compatibility
 - macOS 10.15+, Windows 10+, Ubuntu 20.04+
+- Android 7.0+ (API 24+) - WebView-only client
 - Modern browsers (Chrome 90+, Firefox 90+, Safari 14+)
 - Node.js 18+ for agent processes
+
+## Android Architecture
+
+### Overview
+Android app is a **WebView-only client** - it contains no Rust backend and connects to a desktop server via WebSocket.
+
+### Build Configuration
+```bash
+# After tauri android init, run post-init script
+./scripts/android-post-init.sh
+```
+
+The script configures:
+1. **Cleartext Traffic**: `network_security_config.xml` allows `ws://` connections
+2. **Keyboard Handling**: `windowSoftInputMode="adjustResize"`
+3. **Release Signing**: Uses environment variables or falls back to debug keystore
+
+### Signing Configuration
+```kotlin
+// Release signing in build.gradle.kts
+signingConfigs {
+    create("release") {
+        // If ANDROID_KEYSTORE_PATH is set, use release keystore
+        // Otherwise, fallback to ~/.android/debug.keystore
+    }
+}
+```
+
+Environment variables:
+- `ANDROID_KEYSTORE_PATH` - Path to release keystore
+- `ANDROID_KEYSTORE_PASSWORD` - Keystore password
+- `ANDROID_KEY_ALIAS` - Key alias (default: aerowork)
+- `ANDROID_KEY_PASSWORD` - Key password
+
+### Conditional Compilation
+Desktop-only features use conditional compilation:
+```rust
+#[cfg(not(target_os = "android"))]
+mod agent;  // Agent spawning only on desktop
+
+#[cfg(not(target_os = "android"))]
+mod terminal;  // PTY only on desktop
+```
+
+### First Launch Behavior
+1. Show WebSocket setup dialog (required on mobile)
+2. User enters desktop server URL (e.g., `ws://192.168.1.100:9527/ws`)
+3. Can scan QR code from desktop app for easy setup
 
 ## State Management (Zustand)
 
