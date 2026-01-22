@@ -8,6 +8,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// Detect if running in Tauri app (desktop or mobile)
+function isTauriApp(): boolean {
+  const win = window as { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown };
+  return !!(win.__TAURI__ || win.__TAURI_INTERNALS__);
+}
+
 // Detect if running on mobile
 function isMobile(): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -36,7 +42,10 @@ export function InstallPrompt() {
     useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    // Only show on mobile devices
+    // Don't show in Tauri app (desktop or Android app)
+    if (isTauriApp()) return;
+
+    // Only show on mobile devices in browser
     if (!isMobile()) return;
 
     // Check if dismissed recently (within 7 days)
