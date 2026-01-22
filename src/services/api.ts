@@ -170,7 +170,9 @@ class AgentAPI {
           sessionStore.setActiveSession(currentSessionId);
         }
       } else {
-        console.log("First launch detected, skipping session restore to show welcome screen");
+        console.log("First launch detected, clearing session and showing welcome screen");
+        // Clear any persisted session ID from localStorage
+        sessionStore.setActiveSession(null);
         // Mark as launched after first successful connection
         settingsStore.markLaunched();
       }
