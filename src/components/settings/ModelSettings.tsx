@@ -33,6 +33,7 @@ import type {
   BigModelProvider,
   MiniMaxProvider,
   MoonshotProvider,
+  OllamaProvider,
 } from "@/types/models";
 import {
   createDefaultModelConfig,
@@ -45,7 +46,7 @@ import {
   PROVIDER_NAMES,
 } from "@/types/models";
 
-type BuiltInProviderKey = 'default' | 'anthropic' | 'bedrock' | 'bigmodel' | 'minimax' | 'moonshot';
+type BuiltInProviderKey = 'default' | 'anthropic' | 'bedrock' | 'bigmodel' | 'minimax' | 'moonshot' | 'ollama';
 
 export function ModelSettings() {
   const { t } = useTranslation();
@@ -185,6 +186,20 @@ export function ModelSettings() {
     });
   };
 
+  const handleOllamaChange = (field: keyof OllamaProvider, value: string) => {
+    if (!config) return;
+    setConfig({
+      ...config,
+      providers: {
+        ...config.providers,
+        ollama: {
+          ...config.providers.ollama,
+          [field]: value,
+        },
+      },
+    });
+  };
+
   const handleCustomProviderChange = (id: string, field: keyof CustomProvider, value: string) => {
     if (!config) return;
     setConfig({
@@ -248,7 +263,7 @@ export function ModelSettings() {
     );
   }
 
-  const builtInProviders: BuiltInProviderKey[] = ['default', 'anthropic', 'bedrock', 'bigmodel', 'minimax', 'moonshot'];
+  const builtInProviders: BuiltInProviderKey[] = ['default', 'anthropic', 'bedrock', 'bigmodel', 'minimax', 'moonshot', 'ollama'];
 
   // Render inline config for each provider
   const renderProviderConfig = (key: string) => {
@@ -832,6 +847,63 @@ export function ModelSettings() {
 
             <div className="text-xs text-muted-foreground">
               Base URL: https://api.moonshot.ai/anthropic
+            </div>
+          </div>
+        );
+
+      case "ollama":
+        return (
+          <div className="mt-3 pt-3 border-t space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <Label className="text-xs">ANTHROPIC_MODEL</Label>
+              <Input
+                className="h-8 text-sm"
+                value={config.providers.ollama.model}
+                onChange={(e) => handleOllamaChange("model", e.target.value)}
+                placeholder="qwen3:32b"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("modelProvider.ollamaModelHint")}
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs">ANTHROPIC_BASE_URL</Label>
+              <Input
+                className="h-8 text-sm"
+                value={config.providers.ollama.baseUrl}
+                onChange={(e) => handleOllamaChange("baseUrl", e.target.value)}
+                placeholder="http://localhost:11434"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">ANTHROPIC_API_KEY ({t("common.optional")})</Label>
+              <div className="flex gap-2">
+                <Input
+                  className="h-8 text-sm"
+                  type={showSecrets["ollama-key"] ? "text" : "password"}
+                  value={config.providers.ollama.apiKey}
+                  onChange={(e) => handleOllamaChange("apiKey", e.target.value)}
+                  placeholder="sk-..."
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => toggleSecretVisibility("ollama-key")}
+                >
+                  {showSecrets["ollama-key"] ? (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              {t("modelProvider.ollamaDescription")}
             </div>
           </div>
         );

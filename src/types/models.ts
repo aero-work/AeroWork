@@ -4,7 +4,7 @@
  * These types match the Rust backend model_config.rs structures
  */
 
-export type ProviderType = 'default' | 'anthropic' | 'bedrock' | 'bigmodel' | 'minimax' | 'moonshot' | 'custom';
+export type ProviderType = 'default' | 'anthropic' | 'bedrock' | 'bigmodel' | 'minimax' | 'moonshot' | 'ollama' | 'custom';
 
 /**
  * Main model configuration structure
@@ -25,6 +25,7 @@ export interface Providers {
   bigmodel: BigModelProvider;
   minimax: MiniMaxProvider;
   moonshot: MoonshotProvider;
+  ollama: OllamaProvider;
 }
 
 /**
@@ -92,6 +93,17 @@ export interface MoonshotProvider {
   enabled: boolean;
   authToken: string;
   model: string;
+}
+
+/**
+ * Ollama provider configuration (local LLM server)
+ */
+export interface OllamaProvider {
+  type: 'ollama';
+  enabled: boolean;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
 }
 
 /**
@@ -169,6 +181,7 @@ export const PROVIDER_NAMES: Record<string, string> = {
   bigmodel: 'BigModel / Zhipu',
   minimax: 'MiniMax',
   moonshot: 'Moonshot AI / Kimi',
+  ollama: 'Ollama',
 };
 
 /**
@@ -220,6 +233,13 @@ export function createDefaultModelConfig(): ModelProviderConfig {
         enabled: true,
         authToken: '',
         model: 'kimi-k2-thinking-turbo',
+      },
+      ollama: {
+        type: 'ollama',
+        enabled: true,
+        apiKey: '',
+        model: '',
+        baseUrl: 'http://localhost:11434',
       },
     },
     customProviders: [],

@@ -31,6 +31,8 @@ pub struct Providers {
     pub bigmodel: BigModelProvider,
     pub minimax: MiniMaxProvider,
     pub moonshot: MoonshotProvider,
+    #[serde(default)]
+    pub ollama: OllamaProvider,
 }
 
 /// Default provider - no additional environment variables
@@ -119,6 +121,33 @@ pub struct MoonshotProvider {
     pub model: String,
 }
 
+/// Ollama provider configuration (local LLM server)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OllamaProvider {
+    #[serde(rename = "type")]
+    pub provider_type: String,
+    pub enabled: bool,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub base_url: String,
+}
+
+impl Default for OllamaProvider {
+    fn default() -> Self {
+        Self {
+            provider_type: "ollama".to_string(),
+            enabled: true,
+            api_key: String::new(),
+            model: String::new(),
+            base_url: "http://localhost:11434".to_string(),
+        }
+    }
+}
+
 /// Custom provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -191,6 +220,7 @@ impl Default for ModelConfig {
                     auth_token: String::new(),
                     model: "kimi-k2-thinking-turbo".to_string(),
                 },
+                ollama: OllamaProvider::default(),
             },
             custom_providers: vec![],
         }
@@ -286,6 +316,14 @@ impl ModelConfig {
             "bigmodel" => {
                 // BigModel uses Anthropic-compatible API
                 Some("claude-sonnet-4-5".to_string())
+            }
+            "ollama" => {
+                let p = &self.providers.ollama;
+                if !p.model.is_empty() {
+                    Some(p.model.clone())
+                } else {
+                    None // Ollama requires user to specify model
+                }
             }
             custom_id => {
                 // Custom provider
@@ -485,6 +523,26 @@ impl ModelConfig {
                 env.insert("CLAUDE_CODE_SUBAGENT_MODEL".to_string(), model);
                 if !p.auth_token.is_empty() {
                     env.insert("ANTHROPIC_AUTH_TOKEN".to_string(), p.auth_token.clone());
+                }
+            }
+            "ollama" => {
+                let p = &self.providers.ollama;
+                // Use configured base_url or default to localhost:11434
+                let base_url = if p.base_url.is_empty() {
+                    "http://localhost:11434".to_string()
+                } else {
+                    p.base_url.clone()
+                };
+                env.insert("ANTHROPIC_BASE_URL".to_string(), base_url);
+                if !p.model.is_empty() {
+                    env.insert("ANTHROPIC_MODEL".to_string(), p.model.clone());
+                    env.insert("ANTHROPIC_DEFAULT_OPUS_MODEL".to_string(), p.model.clone());
+                    env.insert("ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(), p.model.clone());
+                    env.insert("ANTHROPIC_DEFAULT_HAIKU_MODEL".to_string(), p.model.clone());
+                    env.insert("CLAUDE_CODE_SUBAGENT_MODEL".to_string(), p.model.clone());
+                }
+                if !p.api_key.is_empty() {
+                    env.insert("ANTHROPIC_API_KEY".to_string(), p.api_key.clone());
                 }
             }
             custom_id => {

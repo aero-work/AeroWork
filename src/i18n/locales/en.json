@@ -28,7 +28,8 @@
     "version": "Version",
     "type": "Type",
     "use": "Use",
-    "current": "Current"
+    "current": "Current",
+    "optional": "Optional"
   },
   "header": {
     "connecting": "Connecting...",
@@ -165,7 +166,9 @@
     "providerName": "Provider Name",
     "newProviderName": "Enter new provider name...",
     "restartRequired": "Restart Required",
-    "restartDescription": "Changes to model provider settings will take effect after restarting the agent connection."
+    "restartDescription": "Changes to model provider settings will take effect after restarting the agent connection.",
+    "ollamaModelHint": "Enter the model name from your Ollama server (e.g., qwen3:32b, llama3.3)",
+    "ollamaDescription": "Ollama provides local LLM inference. Default URL: http://localhost:11434"
   },
   "mcpSettings": {
     "title": "MCP Servers",

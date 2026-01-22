@@ -28,7 +28,8 @@
     "version": "版本",
     "type": "类型",
     "use": "使用",
-    "current": "当前"
+    "current": "当前",
+    "optional": "可选"
   },
   "header": {
     "connecting": "连接中...",
@@ -165,7 +166,9 @@
     "providerName": "提供商名称",
     "newProviderName": "输入新提供商名称...",
     "restartRequired": "需要重启",
-    "restartDescription": "模型提供商设置的更改将在重启 Agent 连接后生效。"
+    "restartDescription": "模型提供商设置的更改将在重启 Agent 连接后生效。",
+    "ollamaModelHint": "输入 Ollama 服务器上的模型名称（如 qwen3:32b、llama3.3）",
+    "ollamaDescription": "Ollama 提供本地 LLM 推理服务。默认地址：http://localhost:11434"
   },
   "mcpSettings": {
     "title": "MCP 服务器",
