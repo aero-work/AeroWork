@@ -21,6 +21,7 @@ import { useAgentStore } from "@/stores/agentStore";
 import { useSettingsStore, type PermissionRule } from "@/stores/settingsStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useTerminalStore } from "@/stores/terminalStore";
 import type {
   SessionId,
   SessionInfo,
@@ -90,6 +91,7 @@ function checkPermissionRules(request: PermissionRequest): PermissionOutcome | n
 class AgentAPI {
   private permissionResolver: ((outcome: PermissionOutcome) => void) | null = null;
   private sessionActivatedUnsubscribe: (() => void) | null = null;
+  private reconnectUnsubscribe: (() => void) | null = null;
 
   /**
    * Global permission handler - handles all permission requests from any session
@@ -149,6 +151,15 @@ class AgentAPI {
         sessionStore.setActiveSession(sessionId);
       });
 
+      // Register reconnect handler to restore terminal state
+      this.reconnectUnsubscribe = transport.onReconnect(() => {
+        console.log("WebSocket reconnected, restoring terminal state...");
+        const terminalStore = useTerminalStore.getState();
+        terminalStore.listTerminals().catch((err) => {
+          console.warn("Failed to restore terminals on reconnect:", err);
+        });
+      });
+
       const initResponse = await transport.initialize();
 
       if (initResponse.agentInfo) {
@@ -195,6 +206,15 @@ class AgentAPI {
         fileStore.setRecentProjects(response.projects);
       } catch (e) {
         console.warn("Failed to load recent projects:", e);
+      }
+
+      // Restore existing terminals from backend
+      try {
+        const terminalStore = useTerminalStore.getState();
+        await terminalStore.listTerminals();
+        console.log("Restored terminals:", terminalStore.terminals.length);
+      } catch (e) {
+        console.warn("Failed to restore terminals:", e);
       }
 
       agentStore.setConnectionStatus("connected");
@@ -253,6 +273,11 @@ class AgentAPI {
     if (this.sessionActivatedUnsubscribe) {
       this.sessionActivatedUnsubscribe();
       this.sessionActivatedUnsubscribe = null;
+    }
+
+    if (this.reconnectUnsubscribe) {
+      this.reconnectUnsubscribe();
+      this.reconnectUnsubscribe = null;
     }
 
     try {
