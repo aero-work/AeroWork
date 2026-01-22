@@ -100,3 +100,69 @@ Users can enable Chrome flags to treat specific HTTP origins as secure:
 1. **Self-signed HTTPS certificate**: Configure the server with HTTPS using mkcert or similar
 2. **Use localhost**: Access via `localhost` which is treated as secure
 3. **Reverse proxy with HTTPS**: Use nginx/caddy with Let's Encrypt for public access
+
+---
+
+## Android WebView: Keyboard Not Pushing Input Up (RESOLVED)
+
+**Status**: Resolved
+**Platform**: Android Tauri WebView
+**Component**: `MainActivity.kt`, `MobileLayout.tsx`
+
+### Description
+
+On Android Tauri app with `enableEdgeToEdge()` enabled, the virtual keyboard does not push the input field up. Standard `windowSoftInputMode="adjustResize"` does not work in edge-to-edge (fullscreen) mode.
+
+### Root Cause
+
+Android WebView Bug #36911528 - `adjustResize` behavior is broken when the app uses edge-to-edge rendering. The `visualViewport` API also doesn't fire resize events in this mode.
+
+### Solution
+
+Implemented native keyboard detection using Android WindowInsets API:
+
+1. **MainActivity.kt** - Listen for keyboard height via `WindowInsetsCompat.Type.ime()`:
+   ```kotlin
+   ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, insets ->
+     val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+     val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+     // IME includes nav bar, subtract to get pure keyboard height
+     val pureKeyboardHeight = imeInsets.bottom - navBarInsets.bottom
+     notifyKeyboardHeight(pureKeyboardHeight)
+     insets
+   }
+   ```
+
+2. **Send to WebView** via `evaluateJavascript`:
+   ```kotlin
+   webView?.evaluateJavascript(
+     "window.dispatchEvent(new CustomEvent('androidKeyboardHeight', { detail: { height: $height } }));",
+     null
+   )
+   ```
+
+3. **MobileLayout.tsx** - Listen for event and adjust container height:
+   ```typescript
+   const [keyboardHeight, setKeyboardHeight] = useState(0);
+   useEffect(() => {
+     const handler = (e: CustomEvent<{ height: number }>) => {
+       // Convert physical pixels to CSS pixels
+       const cssPx = Math.round(e.detail.height / window.devicePixelRatio);
+       setKeyboardHeight(cssPx);
+     };
+     window.addEventListener("androidKeyboardHeight", handler);
+     return () => window.removeEventListener("androidKeyboardHeight", handler);
+   }, []);
+   ```
+
+4. **TabBar handling** - Subtract TabBar height from offset so it gets pushed behind keyboard:
+   ```typescript
+   const TAB_BAR_HEIGHT = 56;
+   const keyboardOffset = isTabBarVisible ? keyboardHeight - TAB_BAR_HEIGHT : keyboardHeight;
+   ```
+
+### Key Learnings
+
+- Android returns physical pixels, must divide by `devicePixelRatio` for CSS pixels
+- IME insets include navigation bar height, must subtract `navigationBars().bottom`
+- `src-tauri/gen/android/` files are generated but can be manually edited and preserved

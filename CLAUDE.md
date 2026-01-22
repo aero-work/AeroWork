@@ -114,6 +114,8 @@ ACP Client → Agent Process (stdio)
 - `src/services/transport/websocket.ts` - WebSocket transport layer
 - `src/services/api.ts` - High-level API with connection management
 - `src/main.tsx` - Must call `enableMapSet()` from immer for Set/Map support
+- `src/components/layout/MobileLayout.tsx` - Mobile layout with Android keyboard handling
+- `src-tauri/gen/android/app/src/main/java/com/aerowork/dev/MainActivity.kt` - Android native keyboard detection (manually edited, preserved across rebuilds)
 
 ## Configuration
 
@@ -143,8 +145,12 @@ User config files are stored in `~/.config/aerowork/`:
 - Uses conditional compilation: `#[cfg(not(target_os = "android"))]` for desktop-only modules
 - Run `./scripts/android-post-init.sh` after `tauri android init` to configure:
   - Cleartext traffic (ws://) support via network_security_config.xml
-  - Keyboard resize behavior (adjustResize)
   - Release signing with debug fallback
+- **Keyboard handling**: Standard `adjustResize` doesn't work with `enableEdgeToEdge()`. Solution:
+  - `MainActivity.kt` uses WindowInsets API to detect keyboard height
+  - Sends height to WebView via `evaluateJavascript` custom event (`androidKeyboardHeight`)
+  - `MobileLayout.tsx` listens for event and adjusts container height
+  - Physical pixels converted to CSS pixels via `devicePixelRatio`
 
 ### macOS
 - App is not code-signed; install scripts auto-remove quarantine attribute
