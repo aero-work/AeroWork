@@ -354,19 +354,30 @@ export function Sidebar() {
                         <MessageSquare className="w-3 h-3 flex-shrink-0" />
                         <span className="text-sm truncate">{session.lastUserMessage || session.summary || t("session.conversation")}</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
                         {stoppingSessionId === session.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => handleStopSession(e, session.id)}
-                            title={t("chat.stop")}
-                          >
-                            <Square className="w-3 h-3" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={(e) => handleStopSession(e, session.id)}
+                              title={t("chat.stop")}
+                            >
+                              <Square className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={(e) => handleDeleteSession(e, session.id)}
+                              title={t("common.delete")}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
