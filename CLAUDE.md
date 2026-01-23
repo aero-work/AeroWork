@@ -80,12 +80,21 @@ The compiled binary automatically detects headless environments and runs in serv
 # Force headless mode
 ./aero-work --headless
 
-# Custom port (default: 9527)
-./aero-work --headless --port 8080
-AERO_WS_PORT=8080 ./aero-work --headless
+# Custom ports (defaults: ws=9527, web=1420)
+./aero-work --headless --ws-port 9527 --web-port 1420
+
+# Or via environment variables
+AERO_WS_PORT=9527 AERO_WEB_PORT=1420 ./aero-work --headless
+
+# Specify web assets directory (if not auto-detected)
+AERO_WEB_DIR=/path/to/dist ./aero-work --headless
 ```
 
-In headless mode, only the WebSocket server starts (no GUI window). Connect from browser or mobile app using the printed WebSocket URL.
+In headless mode, two servers start:
+- **Web Client Server** (default: 1420) - serves the frontend UI
+- **WebSocket Server** (default: 9527) - handles agent communication
+
+The web client server auto-discovers `dist/` directory (requires `bun run build` first).
 
 ## Architecture
 

@@ -33,10 +33,13 @@ pub fn is_headless() -> bool {
 
 use crate::core::AppState;
 
-/// Headless mode - WebSocket server only, no GUI
+/// Headless mode - WebSocket server + Web client server, no GUI
 #[cfg(all(feature = "websocket", not(target_os = "android")))]
 pub fn run_headless() {
     use tokio::runtime::Runtime;
+    use std::net::SocketAddr;
+    use axum::Router;
+    use tower_http::services::{ServeDir, ServeFile};
 
     tracing_subscriber::registry()
         .with(
@@ -48,13 +51,12 @@ pub fn run_headless() {
 
     let rt = Runtime::new().expect("Failed to create tokio runtime");
     rt.block_on(async {
-        // Parse port from args or env
-        let port: u16 = std::env::args()
-            .skip_while(|arg| arg != "--port")
-            .nth(1)
-            .and_then(|p| p.parse().ok())
-            .or_else(|| std::env::var("AERO_WS_PORT").ok().and_then(|p| p.parse().ok()))
-            .unwrap_or(9527);
+        // Parse ports from args or env
+        let ws_port: u16 = parse_arg_or_env("--ws-port", "AERO_WS_PORT", 9527);
+        let web_port: u16 = parse_arg_or_env("--web-port", "AERO_WEB_PORT", 1420);
+
+        // Find web assets directory
+        let web_dir = find_web_assets_dir();
 
         // Create app state
         let state = Arc::new(AppState::new());
@@ -83,32 +85,110 @@ pub fn run_headless() {
 
         // Start WebSocket server
         let ws_server = server::WebSocketServer::new(state);
-        match ws_server.start(port).await {
-            Ok(actual_port) => {
-                // Print startup info in a clear format
-                println!();
-                println!("╔════════════════════════════════════════════════════╗");
-                println!("║       Aero Work - Headless Mode                    ║");
-                println!("╠════════════════════════════════════════════════════╣");
-                println!("║  WebSocket Server: ws://0.0.0.0:{:<5}/ws           ║", actual_port);
-                println!("║                                                    ║");
-                println!("║  Connect from browser or mobile app using the      ║");
-                println!("║  WebSocket URL above.                              ║");
-                println!("║                                                    ║");
-                println!("║  Press Ctrl+C to stop                              ║");
-                println!("╚════════════════════════════════════════════════════╝");
-                println!();
-
-                // Keep running until interrupted
-                tokio::signal::ctrl_c().await.ok();
-                println!("\nShutting down...");
-            }
+        let actual_ws_port = match ws_server.start(ws_port).await {
+            Ok(port) => port,
             Err(e) => {
                 eprintln!("Failed to start WebSocket server: {}", e);
                 std::process::exit(1);
             }
+        };
+
+        // Start Web client server if assets directory exists
+        let actual_web_port = if let Some(dir) = web_dir {
+            let index_file = dir.join("index.html");
+
+            // SPA fallback: serve index.html for all non-file routes
+            let serve_dir = ServeDir::new(&dir)
+                .not_found_service(ServeFile::new(&index_file));
+
+            let app = Router::new()
+                .fallback_service(serve_dir);
+
+            let addr = SocketAddr::from(([0, 0, 0, 0], web_port));
+            let listener = match tokio::net::TcpListener::bind(addr).await {
+                Ok(l) => l,
+                Err(e) => {
+                    eprintln!("Failed to bind web server to port {}: {}", web_port, e);
+                    std::process::exit(1);
+                }
+            };
+            let actual_port = listener.local_addr().unwrap().port();
+
+            tokio::spawn(async move {
+                axum::serve(listener, app).await.ok();
+            });
+
+            Some(actual_port)
+        } else {
+            tracing::warn!("Web assets directory not found, web client server disabled");
+            None
+        };
+
+        // Print startup info
+        println!();
+        println!("╔════════════════════════════════════════════════════════╗");
+        println!("║           Aero Work - Headless Mode                    ║");
+        println!("╠════════════════════════════════════════════════════════╣");
+        if let Some(web_port) = actual_web_port {
+            println!("║  Web Client:       http://0.0.0.0:{:<5}               ║", web_port);
         }
+        println!("║  WebSocket Server: ws://0.0.0.0:{:<5}/ws              ║", actual_ws_port);
+        println!("║                                                        ║");
+        if actual_web_port.is_some() {
+            println!("║  Open the Web Client URL in your browser to start.    ║");
+        } else {
+            println!("║  Web assets not found. Build with: bun run build      ║");
+            println!("║  Or connect mobile app to the WebSocket URL.          ║");
+        }
+        println!("║                                                        ║");
+        println!("║  Press Ctrl+C to stop                                  ║");
+        println!("╚════════════════════════════════════════════════════════╝");
+        println!();
+
+        // Keep running until interrupted
+        tokio::signal::ctrl_c().await.ok();
+        println!("\nShutting down...");
     });
+}
+
+/// Parse command line argument or environment variable
+#[cfg(all(feature = "websocket", not(target_os = "android")))]
+fn parse_arg_or_env(arg_name: &str, env_name: &str, default: u16) -> u16 {
+    std::env::args()
+        .skip_while(|arg| arg != arg_name)
+        .nth(1)
+        .and_then(|p| p.parse().ok())
+        .or_else(|| std::env::var(env_name).ok().and_then(|p| p.parse().ok()))
+        .unwrap_or(default)
+}
+
+/// Find web assets directory (dist folder with index.html)
+#[cfg(all(feature = "websocket", not(target_os = "android")))]
+fn find_web_assets_dir() -> Option<std::path::PathBuf> {
+    use std::path::PathBuf;
+
+    // Check common locations
+    let candidates = [
+        // Relative to executable
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("dist"))),
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("../dist"))),
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("../../dist"))),
+        // Relative to current directory
+        Some(PathBuf::from("dist")),
+        Some(PathBuf::from("../dist")),
+        // Explicit env var
+        std::env::var("AERO_WEB_DIR").ok().map(PathBuf::from),
+    ];
+
+    for candidate in candidates.into_iter().flatten() {
+        let index = candidate.join("index.html");
+        if index.exists() {
+            tracing::info!("Found web assets at: {}", candidate.display());
+            return Some(candidate);
+        }
+    }
+
+    None
 }
 
 /// Desktop entry point - full featured with agent, terminal, WebSocket server
