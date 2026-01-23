@@ -17,6 +17,7 @@ import {
   Loader2,
   X,
   Check,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,11 @@ export function MobileProjectSelector({ open, onClose, onSelect }: MobileProject
   const [browseEntries, setBrowseEntries] = useState<DirectoryEntry[]>([]);
   const [browseLoading, setBrowseLoading] = useState(false);
   const [browseError, setBrowseError] = useState<string | null>(null);
+
+  // New folder state
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const {
     currentWorkingDir,
@@ -135,6 +141,30 @@ export function MobileProjectSelector({ open, onClose, onSelect }: MobileProject
     }
   }, [browsePath, handleSelectProject]);
 
+  // Create new folder
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim() || !browsePath) return;
+
+    setCreatingFolder(true);
+    try {
+      const newFolderPath = `${browsePath}/${newFolderName.trim()}`;
+      await fileService.createDirectory(newFolderPath);
+      await loadDirectory(browsePath);
+      setNewFolderName("");
+      setShowNewFolderInput(false);
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+      setBrowseError(error instanceof Error ? error.message : "Failed to create folder");
+    } finally {
+      setCreatingFolder(false);
+    }
+  }, [newFolderName, browsePath, loadDirectory]);
+
+  const handleCancelNewFolder = useCallback(() => {
+    setNewFolderName("");
+    setShowNewFolderInput(false);
+  }, []);
+
   useEffect(() => {
     if (activeTab === "browse" && !browsePath && isConnected) {
       const initialPath = currentWorkingDir || getHomePath();
@@ -149,8 +179,15 @@ export function MobileProjectSelector({ open, onClose, onSelect }: MobileProject
       setBrowseError(null);
       setActiveTab("recent");
       setCustomPath("");
+      setShowNewFolderInput(false);
+      setNewFolderName("");
     }
   }, [open]);
+
+  useEffect(() => {
+    setShowNewFolderInput(false);
+    setNewFolderName("");
+  }, [activeTab]);
 
   if (!open) return null;
 
@@ -282,10 +319,59 @@ export function MobileProjectSelector({ open, onClose, onSelect }: MobileProject
                   >
                     <Home className="w-4 h-4" />
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowNewFolderInput(true)}
+                    disabled={browseLoading || !browsePath || showNewFolderInput}
+                    className="h-9 w-9 flex-shrink-0"
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                  </Button>
                   <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm truncate min-w-0">
                     {browsePath || "/"}
                   </div>
                 </div>
+
+                {/* New folder input */}
+                {showNewFolderInput && (
+                  <div className="flex gap-2 p-3 border-b border-border flex-shrink-0">
+                    <Input
+                      placeholder="Folder name..."
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleCreateFolder();
+                        } else if (e.key === "Escape") {
+                          handleCancelNewFolder();
+                        }
+                      }}
+                      disabled={creatingFolder}
+                      autoFocus
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleCreateFolder}
+                      disabled={!newFolderName.trim() || creatingFolder}
+                      size="sm"
+                    >
+                      {creatingFolder ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Create"
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelNewFolder}
+                      disabled={creatingFolder}
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
 
                 {/* Error message */}
                 {browseError && (
