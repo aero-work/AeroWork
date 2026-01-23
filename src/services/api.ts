@@ -172,21 +172,16 @@ class AgentAPI {
         agentStore.setAuthMethods(initResponse.authMethods);
       }
 
-      // Sync current session from backend (skip on first launch to show welcome screen)
+      // On app startup, don't auto-restore session - let user select from sidebar
+      // This matches mobile behavior where users see session list first
       const settingsStore = useSettingsStore.getState();
-      if (settingsStore.hasLaunchedBefore) {
-        const currentSessionId = await transport.getCurrentSession();
-        if (currentSessionId) {
-          console.log("Syncing current session from backend:", currentSessionId);
-          sessionStore.setActiveSession(currentSessionId);
-        }
-      } else {
-        console.log("First launch detected, clearing session and showing welcome screen");
-        // Clear any persisted session ID from localStorage
-        sessionStore.setActiveSession(null);
+      if (!settingsStore.hasLaunchedBefore) {
+        console.log("First launch detected, showing welcome screen");
         // Mark as launched after first successful connection
         settingsStore.markLaunched();
       }
+      // Clear any persisted session ID - user should explicitly select a session
+      sessionStore.setActiveSession(null);
 
       // Get server info (cwd, home path) and set defaults
       try {
