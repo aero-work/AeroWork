@@ -162,6 +162,7 @@ export function Sidebar() {
 
   const currentWorkingDir = useFileStore((state) => state.currentWorkingDir);
   const showChat = useFileStore((state) => state.showChat);
+  const triggerRefresh = useFileStore((state) => state.triggerRefresh);
   const closeSettings = useSettingsStore((state) => state.closeSettings);
   const showHiddenFiles = useSettingsStore((state) => state.showHiddenFiles);
   const setShowHiddenFiles = useSettingsStore((state) => state.setShowHiddenFiles);
@@ -182,10 +183,21 @@ export function Sidebar() {
         next.delete(section);
       } else {
         next.add(section);
+        // Refresh files when opening files section
+        if (section === "files" && isConnected && currentWorkingDir) {
+          triggerRefresh();
+        }
       }
       return next;
     });
   };
+
+  // Handle refresh files button click
+  const handleRefreshFiles = useCallback(() => {
+    if (isConnected && currentWorkingDir) {
+      triggerRefresh();
+    }
+  }, [isConnected, currentWorkingDir, triggerRefresh]);
 
   const handleNewSession = useCallback(async () => {
     if (!currentWorkingDir || isCreatingSession) return;
@@ -460,19 +472,30 @@ export function Sidebar() {
           onToggle={() => toggleSection("files")}
           action={
             currentWorkingDir ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => setShowHiddenFiles(!showHiddenFiles)}
-                title={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
-              >
-                {showHiddenFiles ? (
-                  <EyeOff className="w-3 h-3" />
-                ) : (
-                  <Eye className="w-3 h-3" />
-                )}
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleRefreshFiles}
+                  title="Refresh files"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setShowHiddenFiles(!showHiddenFiles)}
+                  title={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
+                >
+                  {showHiddenFiles ? (
+                    <EyeOff className="w-3 h-3" />
+                  ) : (
+                    <Eye className="w-3 h-3" />
+                  )}
+                </Button>
+              </div>
             ) : null
           }
         >
