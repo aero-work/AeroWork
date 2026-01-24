@@ -67,6 +67,38 @@ impl TerminalManager {
         let mut cmd = CommandBuilder::new(get_default_shell());
         cmd.cwd(&working_dir);
 
+        // Set TERM for terminal capabilities (required for tmux and other TUI apps)
+        cmd.env("TERM", "xterm-256color");
+
+        // Set COLORTERM for true color support
+        cmd.env("COLORTERM", "truecolor");
+
+        // Preserve locale settings for UTF-8 support (required for tmux)
+        if let Ok(lang) = std::env::var("LANG") {
+            cmd.env("LANG", lang);
+        }
+        if let Ok(lc_all) = std::env::var("LC_ALL") {
+            cmd.env("LC_ALL", lc_all);
+        }
+        if let Ok(lc_ctype) = std::env::var("LC_CTYPE") {
+            cmd.env("LC_CTYPE", lc_ctype);
+        }
+
+        // Preserve HOME for config files (required for tmux)
+        if let Ok(home) = std::env::var("HOME") {
+            cmd.env("HOME", home);
+        }
+
+        // Preserve PATH for finding executables
+        if let Ok(path) = std::env::var("PATH") {
+            cmd.env("PATH", path);
+        }
+
+        // Preserve USER for proper shell behavior
+        if let Ok(user) = std::env::var("USER") {
+            cmd.env("USER", user);
+        }
+
         // Spawn the shell in the slave PTY
         let _child = pty_pair
             .slave
