@@ -230,11 +230,11 @@ function MessageBubble({ message }: { message: Message }) {
         <button
           onClick={handleCopy}
           className={cn(
-            "absolute top-2 right-2 p-1.5 rounded-md transition-all z-10",
+            "absolute top-2 right-2 p-1.5 rounded-md transition-all z-10 backdrop-blur-sm",
             isHovered ? "opacity-100" : "opacity-0",
             isUser
-              ? "hover:bg-white/20 text-white"
-              : "hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
+              ? "bg-white/20 hover:bg-white/30 text-white"
+              : "bg-background/80 hover:bg-background/90 text-muted-foreground hover:text-foreground border border-border/50"
           )}
           title="Copy to clipboard"
         >
@@ -247,7 +247,7 @@ function MessageBubble({ message }: { message: Message }) {
 
         {/* Message content with markdown */}
         <div className={cn(
-          "prose-custom text-sm pr-6 max-w-none",
+          "prose-custom text-sm max-w-none",
           isUser && "prose-user"
         )}>
           <ReactMarkdown
