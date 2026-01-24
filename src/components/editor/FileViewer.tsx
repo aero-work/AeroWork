@@ -4,8 +4,13 @@ import { Button } from "@/components/ui/button";
 import * as fileService from "@/services/fileService";
 import { formatFileSize, formatModifiedDate } from "@/lib/fileTypes";
 import { isDesktopApp } from "@/services/transport";
-import { FileQuestion, FileCode, Download, FolderOpen, ExternalLink } from "lucide-react";
+import { FileQuestion, FileCode, Download, FolderOpen, ExternalLink, Eye, Code } from "lucide-react";
 import { CodeEditor } from "./CodeEditor";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useIsDarkMode } from "@/hooks/useIsDarkMode";
 
 // Helper functions for desktop file operations
 async function revealInFinder(path: string) {
@@ -126,6 +131,120 @@ function PdfViewer({ file }: { file: OpenFile }) {
   );
 }
 
+// HTML preview viewer
+function HtmlPreviewViewer({ file, onToggleView }: { file: OpenFile; onToggleView: () => void }) {
+  const content = useMemo(() => {
+    if (!file.content) return "";
+    return file.content;
+  }, [file.content]);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+        <span className="text-sm text-muted-foreground">
+          {file.name} • {formatFileSize(file.size)}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onToggleView}>
+          <Code className="w-4 h-4 mr-2" />
+          View Source
+        </Button>
+      </div>
+      {/* HTML preview */}
+      <div className="flex-1 overflow-auto p-4 bg-background">
+        <div
+          className="prose prose-slate dark:prose-invert max-w-none"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Markdown preview viewer
+function MarkdownPreviewViewer({ file, onToggleView }: { file: OpenFile; onToggleView: () => void }) {
+  const isDark = useIsDarkMode();
+  const content = useMemo(() => {
+    if (!file.content) return "";
+    return file.content;
+  }, [file.content]);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+        <span className="text-sm text-muted-foreground">
+          {file.name} • {formatFileSize(file.size)}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onToggleView}>
+          <Code className="w-4 h-4 mr-2" />
+          View Source
+        </Button>
+      </div>
+      {/* Markdown preview */}
+      <div className="flex-1 overflow-auto p-6 bg-background">
+        <div className="prose prose-slate dark:prose-invert max-w-none">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || "");
+                const isInline = !match && !className;
+
+                if (isInline) {
+                  return (
+                    <code {...props}>
+                      {children}
+                    </code>
+                  );
+                }
+
+                return (
+                  <SyntaxHighlighter
+                    style={isDark ? oneDark : oneLight}
+                    language={match?.[1] || "text"}
+                    PreTag="div"
+                    customStyle={{
+                      margin: 0,
+                      borderRadius: "0.5rem",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    {String(children).replace(/\n$/, "")}
+                  </SyntaxHighlighter>
+                );
+              },
+              a({ children, href, ...props }) {
+                return (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...props}
+                  >
+                    {children}
+                  </a>
+                );
+              },
+              table({ children, ...props }) {
+                return (
+                  <div className="overflow-x-auto">
+                    <table {...props}>
+                      {children}
+                    </table>
+                  </div>
+                );
+              },
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Binary file info viewer for desktop
 function BinaryViewer({ file, onForceEdit }: { file: OpenFile; onForceEdit: () => void }) {
   const isDesktop = isDesktopApp();
@@ -222,6 +341,7 @@ export function FileViewer() {
   const activeFile = useActiveFile();
   const updateFileContent = useFileStore((state) => state.updateFileContent);
   const [forceTextEdit, setForceTextEdit] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<Record<string, boolean>>({});
 
   const handleForceEdit = useCallback(async () => {
     if (!activeFile) return;
@@ -233,6 +353,20 @@ export function FileViewer() {
       console.error("Failed to read file as text:", error);
     }
   }, [activeFile, updateFileContent]);
+
+  const togglePreview = useCallback(() => {
+    if (!activeFile) return;
+    setPreviewMode((prev) => ({
+      ...prev,
+      [activeFile.path]: !prev[activeFile.path],
+    }));
+  }, [activeFile]);
+
+  // Helper to check if file is HTML or Markdown
+  const getFileExtension = useCallback((path: string): string => {
+    const name = path.split("/").pop() || "";
+    return name.split(".").pop()?.toLowerCase() || "";
+  }, []);
 
   if (!activeFile) {
     return (
@@ -247,10 +381,24 @@ export function FileViewer() {
 
   const fileType = activeFile.fileType || "text";
   const isForceEditing = forceTextEdit === activeFile.path;
+  const ext = getFileExtension(activeFile.path);
+  const isHtml = ext === "html" || ext === "htm" || ext === "xhtml";
+  const isMarkdown = ext === "md" || ext === "markdown" || ext === "mdx";
+  const shouldShowPreview = previewMode[activeFile.path] && (isHtml || isMarkdown);
 
-  // Text files or force editing - use Monaco editor
+  // HTML preview mode
+  if (shouldShowPreview && isHtml) {
+    return <HtmlPreviewViewer file={activeFile} onToggleView={togglePreview} />;
+  }
+
+  // Markdown preview mode
+  if (shouldShowPreview && isMarkdown) {
+    return <MarkdownPreviewViewer file={activeFile} onToggleView={togglePreview} />;
+  }
+
+  // Text files or force editing - use Monaco editor (with preview toggle for HTML/MD)
   if (isForceEditing || fileType === "text") {
-    return <CodeEditor />;
+    return <CodeEditor onTogglePreview={(isHtml || isMarkdown) ? togglePreview : undefined} />;
   }
 
   // Image files

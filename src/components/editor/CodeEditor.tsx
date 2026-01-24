@@ -4,9 +4,15 @@ import type * as Monaco from "monaco-editor";
 import { useFileStore, useActiveFile } from "@/stores/fileStore";
 import * as fileService from "@/services/fileService";
 import { useIsDarkMode } from "@/hooks/useIsDarkMode";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatFileSize } from "@/lib/fileTypes";
 
-export function CodeEditor() {
+interface CodeEditorProps {
+  onTogglePreview?: () => void;
+}
+
+export function CodeEditor({ onTogglePreview }: CodeEditorProps = {}) {
   const activeFile = useActiveFile();
   const updateFileContent = useFileStore((state) => state.updateFileContent);
   const markFileSaved = useFileStore((state) => state.markFileSaved);
@@ -64,6 +70,20 @@ export function CodeEditor() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* Toolbar (only shown when preview toggle is available) */}
+      {onTogglePreview && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30">
+          <span className="text-sm text-muted-foreground">
+            {activeFile.name} • {formatFileSize(activeFile.size)}
+          </span>
+          <Button variant="ghost" size="sm" onClick={onTogglePreview}>
+            <Eye className="w-4 h-4 mr-2" />
+            Preview
+          </Button>
+        </div>
+      )}
+
+      {/* Editor */}
       <Editor
         height="100%"
         language={activeFile.language || "plaintext"}
