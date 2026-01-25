@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import * as fileService from "@/services/fileService";
 import { formatFileSize, formatModifiedDate } from "@/lib/fileTypes";
 import { isDesktopApp } from "@/services/transport";
-import { FileQuestion, FileCode, Download, FolderOpen, ExternalLink, Eye, Code } from "lucide-react";
+import { FileQuestion, FileCode, Download, FolderOpen, ExternalLink, Code } from "lucide-react";
 import { CodeEditor } from "./CodeEditor";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
