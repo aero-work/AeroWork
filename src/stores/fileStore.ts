@@ -124,6 +124,17 @@ export const useFileStore = create<FileState & FileActions>()(
             state.activeFilePath = state.openFiles.length > 0 ? state.openFiles[0].path : null;
           }
         });
+
+        // Notify server of current project change (for session filtering)
+        // This is async but we don't await it to avoid blocking the UI
+        (async () => {
+          try {
+            const { agentAPI } = await import("@/services/api");
+            await agentAPI.setCurrentCwd(path);
+          } catch (e) {
+            console.warn("Failed to set current cwd on server:", e);
+          }
+        })();
       },
 
       addRecentProject: (path, name) => {

@@ -48,7 +48,7 @@ if [ -f "$MANIFEST" ]; then
     if grep -q "windowSoftInputMode" "$MANIFEST"; then
         echo "AndroidManifest.xml keyboard config already set, skipping..."
     else
-        sed -i.bak 's|android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"|android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"\n            android:windowSoftInputMode="adjustResize"|' "$MANIFEST"
+        sed -i.bak 's#android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"#android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"\n            android:windowSoftInputMode="adjustResize"#' "$MANIFEST"
         rm -f "$MANIFEST.bak"
         echo "Modified: AndroidManifest.xml (keyboard resize)"
     fi

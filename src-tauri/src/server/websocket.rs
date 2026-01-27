@@ -288,6 +288,9 @@ struct ServerState {
 struct ClientState {
     client_id: ClientId,
     subscribed_sessions: std::sync::RwLock<std::collections::HashSet<SessionId>>,
+    /// Current working directory (project) for this client
+    /// Used to filter broadcasts - clients only receive updates for their current project
+    current_cwd: std::sync::RwLock<Option<String>>,
 }
 
 async fn health_handler() -> &'static str {
@@ -327,6 +330,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<ServerState>) {
     let client_state = Arc::new(ClientState {
         client_id: client_id.clone(),
         subscribed_sessions: std::sync::RwLock::new(std::collections::HashSet::new()),
+        current_cwd: std::sync::RwLock::new(None),
     });
 
     info!("WebSocket client connected: {}", client_id);
@@ -340,12 +344,86 @@ async fn handle_socket(socket: WebSocket, state: Arc<ServerState>) {
     // NOTE: Don't push pending permission here - client will discover it
     // from SessionState.pendingPermission when it fetches session state
 
-    // Task to forward broadcast events to this WebSocket
+    // Task to forward broadcast events to this WebSocket (with cwd filtering)
     let ws_tx_clone = ws_tx.clone();
+    let client_state_clone = client_state.clone();
+    let state_clone = state.clone();
     let event_task = tokio::spawn(async move {
         while let Ok(msg) = event_rx.recv().await {
-            if ws_tx_clone.send(msg).await.is_err() {
-                break;
+            // Parse message to extract session_id (if present) for cwd filtering
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&msg) {
+                let method = parsed.get("method").and_then(|v| v.as_str());
+
+                // Filter based on message type and client's current cwd
+                let should_send = match method {
+                    Some("session/update") | Some("session/state_update") => {
+                        // Extract sessionId from the notification
+                        if let Some(session_id) = parsed.get("params")
+                            .and_then(|p| p.get("sessionId"))
+                            .and_then(|s| s.as_str()) {
+                            // Get session's cwd
+                            if let Some(session_info) = state_clone.app_state.session_registry.get_session_info(session_id) {
+                                let session_cwd = session_info.cwd.clone();
+                                // Get client's current cwd
+                                let client_cwd = client_state_clone.current_cwd.read().unwrap().clone();
+                                // Only send if cwds match (or client has no cwd set)
+                                client_cwd.is_none() || client_cwd.as_deref() == Some(&session_cwd)
+                            } else {
+                                false // Session not found, don't send
+                            }
+                        } else {
+                            false // No sessionId, don't send
+                        }
+                    }
+                    Some("permission/request") => {
+                        // Extract sessionId from permission request
+                        if let Some(session_id) = parsed.get("params")
+                            .and_then(|p| p.get("sessionId"))
+                            .or_else(|| parsed.get("params").and_then(|p| p.get("session_id")))
+                            .and_then(|s| s.as_str()) {
+                            // Get session's cwd
+                            if let Some(session_info) = state_clone.app_state.session_registry.get_session_info(session_id) {
+                                let session_cwd = session_info.cwd.clone();
+                                // Get client's current cwd
+                                let client_cwd = client_state_clone.current_cwd.read().unwrap().clone();
+                                // Only send if cwds match (or client has no cwd set)
+                                client_cwd.is_none() || client_cwd.as_deref() == Some(&session_cwd)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    Some("sessions/updated") => {
+                        // Sessions list is already filtered by cwd in the handler
+                        // But we still need to check if this update is relevant to this client
+                        let client_cwd = client_state_clone.current_cwd.read().unwrap().clone();
+                        // If client has no cwd, send all updates
+                        // Otherwise, the sessions list should already be filtered
+                        true
+                    }
+                    Some("terminal/output") => {
+                        // Terminal output doesn't have session association, always send
+                        // (terminals are created per-client, not globally broadcast)
+                        true
+                    }
+                    _ => {
+                        // Unknown message types or non-session messages, send
+                        true
+                    }
+                };
+
+                if should_send {
+                    if ws_tx_clone.send(msg).await.is_err() {
+                        break;
+                    }
+                }
+            } else {
+                // If we can't parse, send it anyway (backward compatibility)
+                if ws_tx_clone.send(msg).await.is_err() {
+                    break;
+                }
             }
         }
     });
@@ -457,6 +535,17 @@ async fn dispatch_method(
         }
         "get_client_id" => {
             Ok(serde_json::json!({ "clientId": client_state.client_id }))
+        }
+        "set_current_cwd" => {
+            let cwd = params.get("cwd")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            *client_state.current_cwd.write().unwrap() = cwd.clone();
+            Ok(serde_json::json!({ "cwd": cwd }))
+        }
+        "get_current_cwd" => {
+            let cwd = client_state.current_cwd.read().unwrap().clone();
+            Ok(serde_json::json!({ "cwd": cwd }))
         }
         "set_dangerous_mode" => {
             let session_id = params.get("sessionId")

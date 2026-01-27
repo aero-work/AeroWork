@@ -229,6 +229,16 @@ class AgentAPI {
         console.warn("Failed to load recent projects:", e);
       }
 
+      // Set initial current working directory for session filtering
+      const fileStore = useFileStore.getState();
+      if (fileStore.currentWorkingDir) {
+        try {
+          await this.setCurrentCwd(fileStore.currentWorkingDir);
+        } catch (e) {
+          console.warn("Failed to set initial cwd on server:", e);
+        }
+      }
+
       // Restore existing terminals from backend
       try {
         const terminalStore = useTerminalStore.getState();
@@ -593,6 +603,22 @@ class AgentAPI {
       console.warn("Failed to sync recent projects clear to server:", e);
       // Fall back to local-only update
       fileStore.clearRecentProjects();
+    }
+  }
+
+  /**
+   * Set current working directory for this client (for session filtering)
+   * This tells the server which project this client is working on,
+   * so the server can filter broadcasts to only send relevant updates
+   */
+  async setCurrentCwd(cwd: string | null): Promise<void> {
+    const transport = getTransport();
+
+    try {
+      await transport.request("set_current_cwd", { cwd });
+    } catch (e) {
+      console.warn("Failed to set current cwd on server:", e);
+      // This is not critical - client will still work, just won't filter broadcasts
     }
   }
 
