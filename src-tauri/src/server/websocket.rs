@@ -828,6 +828,11 @@ async fn dispatch_method(
             serde_json::to_value(response).map_err(|e| e.to_string())
         }
 
+        // Heartbeat/keep-alive
+        "ping" => {
+            Ok(serde_json::json!({ "pong": true }))
+        }
+
         // Server info commands
         "get_server_info" => {
             let port = state.get_ws_port();
